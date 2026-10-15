@@ -6,7 +6,7 @@
 - **User:** A portfolio analyst tracking Fed policy who needs precise wording, dates, and a checkable source.
 - **In scope:** FOMC statements and minutes from January 2019 onward. Single-meeting questions and comparisons between meetings.
 - **Out of scope:**
-  - Other Fed documents (SEP and dot plot, press conferences, speeches, Beige Book, transcripts)
+  - Other Fed documents (SEP and dot plot, press conferences, speeches, Beige Book, transcripts, Statement on Longer-Run Goals and Monetary Policy Strategy)
   - Anything before January 2019
   - Predicting future decisions
   - Economic or market data. The corpus holds the Committee's assessment of conditions, not the data.
@@ -20,7 +20,15 @@
 ### Data quirks
 
 - **Two dates per document:** Key on meeting date (last day of the meeting). Store release date separately. Minutes come out about three weeks later, so the newest meeting may have no minutes yet. Fed URLs already use the meeting date (`monetary20190130a.htm`, `fomcminutes20190130.htm`).
-- **Unscheduled meetings:** 2020 had some. Check each for a statement and minutes.
+- **2020 extra links:** 12 statement-pattern URLs, 8 minutes.
+  - Mar 3 and Mar 23: emergency FOMC statements with no minutes page of their own. Mar 3 minutes are at the end of the Mar 15 minutes.
+  - Mar 31 (FIMA repo facility) and Aug 27 (Statement on Longer-Run Goals): not post-meeting statements. Out of scope.
+- **Known limitation, Mar 3 2020 minutes:** Stored under the Mar 15 meeting date. Affects one meeting; the text is still indexed and cites a real document. Cost: a date filter for Mar 3 misses it.
+- **Two page layouts for discovery:**
+  - Historical pages (2019, 2020): statement link text is "Statement".
+  - Calendar page (2021 onward): a `<strong>Statement:</strong>` label, then links with text "PDF" and "HTML".
+  - The calendar page also lists the 2025 Statement on Longer-Run Goals (Aug 22). Out of scope.
+  - Every real post-meeting statement page has the title "Federal Reserve issues FOMC statement".
 - **Page scope:** Parse only inside `<div id="article">`. The site navigation is full of `<strong>` tags.
 - **Statements:** No headings. About four `<p>` paragraphs: conditions, decision, guidance, vote.
 - **Minutes headings:** A `<strong>` at the start of a `<p>`, then `<br />`, then the section's first paragraph in the same `<p>`:
@@ -69,6 +77,27 @@ Each decision is made when its build step is reached, not up front.
 - **Alternatives:** `voyage-4-lite`, `voyage-4-large`, `voyage-finance-2`, OpenAI `text-embedding-3-small`, local sentence-transformers
 - **Why:** Balanced quality and cost. Voyage reports the 4 series beats its older finance model. Context window is long enough that chunk size is a retrieval choice, not a model limit.
 - **Revisit if:** `voyage-finance-2` scores better on the test set.
+
+### Discovery
+
+- **Choice:** Scrape year pages. Collect every `href` matching the statement or minutes URL pattern, take the meeting date from `YYYYMMDD` in the URL, and pair statements and minutes by date.
+- **Alternatives:** Build URLs from a list of meeting dates.
+- **Why:** URL patterns are the same in both page layouts, so one rule covers every year. A date list would be hardcoded or scraped anyway, and built URLs 404 on irregular meetings (Mar 3 2020 has no minutes page).
+- **Revisit if:** The Fed changes its URL patterns.
+
+### Raw data and fixtures
+
+- **Choice:** Raw HTML cache in `data/raw/`, gitignored. A few saved pages committed in `tests/fixtures/` for offline parser tests.
+- **Alternatives:** Commit the full cache; commit nothing.
+- **Why:** The cache is a build output that one command regenerates. Fixtures keep tests deterministic when the Fed site changes. Fed pages are US government works.
+- **Revisit if:** The Fed site becomes unreliable to fetch, making a committed snapshot worth the size.
+
+### Statement filter
+
+- **Choice:** Title check. Keep a fetched statement candidate only if its title is "Federal Reserve issues FOMC statement". Log every rejected URL.
+- **Alternatives:** Link-text rules per page layout.
+- **Why:** One rule for every year and both page layouts. Pages are fetched and cached anyway, so the check costs nothing extra.
+- **Revisit if:** The log shows a real statement rejected, or a non-statement kept.
 
 ### Vector store
 
