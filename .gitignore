@@ -8,3 +8,18 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Secrets
+.env
+
+# Editors / tools
+.claude/
+.ipynb_checkpoints/
+.DS_Store
