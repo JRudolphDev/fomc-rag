@@ -42,7 +42,10 @@
   - `<strong>` also marks vote labels, the date line, and the signature.
   - One-off sections appear (Annual Organizational Matters, Attendance).
   - Whitespace variants (`<p><br />` before a heading, empty `<strong> </strong>`).
-- **Heading rule (draft):** A `<strong>` that is the first content of a `<p>` (ignoring whitespace and leading `<br />`), followed by `<br />`, with text not ending in `:` after stripping. Known misfires to fix in the parser: the 2025 date line and the signature block.
+- **Heading rule:** Three steps.
+  1. **Find candidates:** A `<strong>` that is the first content of a `<p>` (ignoring whitespace and leading `<br />`), followed by `<br />`.
+  2. **Reject non-headings:** Text ending in `:` after stripping (vote labels). Text that is a date (date line). A `<p>` with `text-align:center` (signature block).
+  3. **Classify:** If the text matches a core section (case-insensitive, Action and Actions treated as equal), store its canonical key: `financial_markets`, `economic_situation`, `financial_situation`, `staff_outlook`, `participants_views`, `policy_action`. Otherwise store a slug of the raw heading (for example `annual_organizational_matters`) and log it for review.
 
 ## 3. Pipeline
 
