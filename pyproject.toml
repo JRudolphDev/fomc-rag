@@ -3,6 +3,7 @@ name = "fomc-rag"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Jared Rudolph", email = "jkrudolph@outlook.com" }
 ]
