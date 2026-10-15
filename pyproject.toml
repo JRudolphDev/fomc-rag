@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 license = "MIT"
 authors = [
-    { name = "Jared Rudolph", email = "jkrudolph@outlook.com" }
+    { name = "Jaryd Rudolph", email = "jarydrudolph@gmail.com" }
 ]
 requires-python = ">=3.13"
 dependencies = []
