@@ -15,6 +15,12 @@ def test_extract_links_2020():
     # Assert: check the facts
     assert len(statements) == 12
     assert len(minutes) == 8
+    # Mar 15 minutes also contain the Mar 3 emergency meeting's minutes.
+    assert (
+        "https://www.federalreserve.gov/monetarypolicy/fomcminutes20200315.htm"
+        in minutes
+    )
+
     assert (
         "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200303a.htm"
         in statements
