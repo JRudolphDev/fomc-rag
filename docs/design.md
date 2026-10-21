@@ -97,12 +97,28 @@ Each decision is made when its build step is reached, not up front.
 - **Choice:** Cached pages never expire. The caller passes `refresh=True` for living pages (`fomccalendars.htm`), which re-downloads and overwrites. Writes go to a `.tmp` file, then rename into place. Bytes are stored raw and decoded with `utf-8-sig` on read.
 - **Alternatives:** Expire by age; conditional requests (`ETag` / `If-Modified-Since`); never cache year pages.
 - **Why:** Statement and minutes pages never change once published, so expiry adds nothing. The calendar page gains meetings during the year, so it must be fresh. The caller decides because it knows which pages change; the fetcher stays generic. The rename is atomic, so a crash mid-write cannot leave a truncated page that later reads as a valid cache hit. Raw bytes keep the original; `utf-8-sig` strips the BOM the Fed serves on some pages.
-- **Revisit if:** A past page gets corrected after publication, or more living pages appear.### Statement filter
+- **Revisit if:** A past page gets corrected after publication, or more living pages appear.
+
+### Statement filter
 
 - **Choice:** Title check. Keep a fetched statement candidate only if its title is "Federal Reserve issues FOMC statement". Log every rejected URL.
 - **Alternatives:** Link-text rules per page layout.
 - **Why:** One rule for every year and both page layouts. Pages are fetched and cached anyway, so the check costs nothing extra.
 - **Revisit if:** The log shows a real statement rejected, or a non-statement kept.
+
+### Year page selection
+
+- **Choice:** Fetch `fomccalendars.htm` first and find the earliest year among its extracted URL dates. Use `fomchistorical{YEAR}.htm` for every year from `start_year` up to that one.
+- **Alternatives:** Hardcode the boundary year; try the historical page per year and fall back to the calendar on a 404.
+- **Why:** The boundary moves each year as the Fed archives the oldest calendar year. Reading it from the calendar page adjusts automatically. The 404 approach uses errors for control flow and cannot tell "not archived yet" from a real failure.
+- **Revisit if:** The Fed changes the calendar or historicalpage URLs.
+
+### Meeting model
+
+- **Choice:** `Meeting` is a frozen pydantic model.
+- **Alternatives:** Mutable model, filling `minutes_url` after creation.
+- **Why:** A meeting is a fact from discovery. Freezing stops later steps from changing one silently and makes it hashable for sets and dict keys. Pairing builds a `{date: minutes_url}` dict first, so each `Meeting` is created once with everything known. Minutes published later are picked up on the next run, which builds new objects.
+- **Revisit if:** A step needs to enrich meetings in place.
 
 ### Vector store
 
