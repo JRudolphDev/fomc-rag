@@ -1,13 +1,19 @@
 """Find FOMC meetings from year pages: extract statement and minutes links, pair them by date, keep only real statements."""
 
 import re
-from urllib.parse import urljoin
+from datetime import date, datetime
+from pathlib import Path
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
+
+from fomc_rag.fetch import fetch_cached
+from fomc_rag.models import Meeting
 
 BASE_URL = "https://www.federalreserve.gov"
 STATEMENT_PATTERN = re.compile(r"/newsevents/pressreleases/monetary(\d{8})a\.htm")
 MINUTES_PATTERN = re.compile(r"/monetarypolicy/fomcminutes(\d{8})\.htm")
+CALENDAR_URL = urljoin(BASE_URL, "/monetarypolicy/fomccalendars.htm")
 
 
 def extract_links(html: str) -> tuple[set[str], set[str]]:
@@ -26,3 +32,33 @@ def extract_links(html: str) -> tuple[set[str], set[str]]:
             minutes.add(urljoin(BASE_URL, href))
 
     return statements, minutes
+
+
+def url_date(url: str) -> date:
+    """Return the meeting date encoded in a statement or minutes URL."""
+    path = urlparse(url).path
+    m = STATEMENT_PATTERN.fullmatch(path) or MINUTES_PATTERN.fullmatch(path)
+
+    if m is None:
+        raise ValueError(f"no date in URL: {url}")
+
+    digits = m.group(1)
+    return datetime.strptime(digits, "%Y%m%d").date()
+
+
+def historical_url(year: int) -> str:
+    """Return the URL of the FOMC historical page for a year."""
+    return urljoin(BASE_URL, f"/monetarypolicy/fomchistorical{year}.htm")
+
+
+def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
+    """Return meetings from start_year onward, paired and title-checked."""
+    html = fetch_cached(CALENDAR_URL, cache_dir, refresh=True)
+    raise NotImplementedError
+    return html
+
+
+if __name__ == "__main__":
+    url = "https://www.federalreserve.gov/monetarypolicy/fomcminutes20200129.htm"
+    d = url_date(url)
+    print(d)

@@ -1,6 +1,9 @@
+from datetime import date
 from pathlib import Path
 
-from fomc_rag.discover import extract_links
+import pytest
+
+from fomc_rag.discover import extract_links, historical_url, url_date
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -29,4 +32,26 @@ def test_extract_links_2020():
     assert (
         "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200331a.htm"
         in statements
+    )
+
+
+def test_url_date():
+    assert url_date(
+        "https://www.federalreserve.gov/monetarypolicy/fomcminutes20200129.htm"
+    ) == date(2020, 1, 29)
+    assert url_date(
+        "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200331a.htm"
+    ) == date(2020, 3, 31)
+    with pytest.raises(ValueError, match="no date in URL"):
+        url_date("https://example.com/nope.htm")
+    with pytest.raises(ValueError):
+        url_date(
+            "https://www.federalreserve.gov/newsevents/pressreleases/monetary20201399a.htm"
+        )
+
+
+def test_historical_url():
+    assert (
+        historical_url(2020)
+        == "https://www.federalreserve.gov/monetarypolicy/fomchistorical2020.htm"
     )
