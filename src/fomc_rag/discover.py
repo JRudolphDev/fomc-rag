@@ -51,14 +51,34 @@ def historical_url(year: int) -> str:
     return urljoin(BASE_URL, f"/monetarypolicy/fomchistorical{year}.htm")
 
 
+def fetch_links(
+    url: str, cache_dir: Path, refresh: bool = False
+) -> tuple[set[str], set[str]]:
+    """Fetch a year page and return its statement and minutes URLs."""
+    html = fetch_cached(url, cache_dir, refresh)
+    statements, minutes = extract_links(html)
+
+    if not statements and not minutes:
+        raise ValueError(
+            f"No statement or minutes links found on {url}. "
+            "The page layout or URL patterns may have changed."
+        )
+
+    return statements, minutes
+
+
 def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
     """Return meetings from start_year onward, paired and title-checked."""
-    html = fetch_cached(CALENDAR_URL, cache_dir, refresh=True)
-    raise NotImplementedError
-    return html
+    statements, minutes = fetch_links(CALENDAR_URL, cache_dir, refresh=True)
+    boundary_year = min(url_date(u).year for u in statements | minutes)
+
+    for year in range(start_year, boundary_year):
+        year_url = historical_url(year)
+        year_statements, year_minutes = fetch_links(year_url, cache_dir, refresh=False)
+
+        statements |= year_statements
+        minutes |= year_minutes
 
 
 if __name__ == "__main__":
-    url = "https://www.federalreserve.gov/monetarypolicy/fomcminutes20200129.htm"
-    d = url_date(url)
-    print(d)
+    discover_meetings(start_year=2019, cache_dir=Path("data/raw"))
