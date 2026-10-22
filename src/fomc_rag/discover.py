@@ -79,6 +79,12 @@ def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
         statements |= year_statements
         minutes |= year_minutes
 
+    statements = {u for u in statements if url_date(u).year >= start_year}
+    minutes = {u for u in minutes if url_date(u).year >= start_year}
+
+    print(statements, minutes)
+    print(sorted({url_date(u).year for u in statements | minutes}))
+
 
 if __name__ == "__main__":
-    discover_meetings(start_year=2019, cache_dir=Path("data/raw"))
+    discover_meetings(start_year=2023, cache_dir=Path("data/raw"))
