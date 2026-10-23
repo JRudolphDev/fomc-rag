@@ -67,6 +67,10 @@ def fetch_links(
     return statements, minutes
 
 
+def pair_meetings(statements: set[str], meetings: set[str]) -> list[Meeting]:
+    raise NotImplementedError
+
+
 def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
     """Return meetings from start_year onward, paired and title-checked."""
     statements, minutes = fetch_links(CALENDAR_URL, cache_dir, refresh=True)
