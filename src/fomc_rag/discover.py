@@ -67,7 +67,10 @@ def fetch_links(
     return statements, minutes
 
 
-def pair_meetings(statements: set[str], meetings: set[str]) -> list[Meeting]:
+def pair_meetings(statements: set[str], minutes: set[str]) -> list[Meeting]:
+    minutes_by_date = {url_date(u): u for u in minutes}
+    print(minutes_by_date)
+    meetings = [Meeting()]
     raise NotImplementedError
 
 
@@ -86,8 +89,9 @@ def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
     statements = {u for u in statements if url_date(u).year >= start_year}
     minutes = {u for u in minutes if url_date(u).year >= start_year}
 
-    print(statements, minutes)
-    print(sorted({url_date(u).year for u in statements | minutes}))
+    pair_meetings(statements=statements, minutes=minutes)
+    # print(statements, minutes)
+    # print(sorted({url_date(u).year for u in statements | minutes}))
 
 
 if __name__ == "__main__":
