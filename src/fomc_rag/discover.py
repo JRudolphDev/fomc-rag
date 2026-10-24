@@ -14,6 +14,7 @@ BASE_URL = "https://www.federalreserve.gov"
 STATEMENT_PATTERN = re.compile(r"/newsevents/pressreleases/monetary(\d{8})a\.htm")
 MINUTES_PATTERN = re.compile(r"/monetarypolicy/fomcminutes(\d{8})\.htm")
 CALENDAR_URL = urljoin(BASE_URL, "/monetarypolicy/fomccalendars.htm")
+STATEMENT_TITLE = "Federal Reserve issues FOMC statement"
 
 
 def extract_links(html: str) -> tuple[set[str], set[str]]:
@@ -32,6 +33,15 @@ def extract_links(html: str) -> tuple[set[str], set[str]]:
             minutes.add(urljoin(BASE_URL, href))
 
     return statements, minutes
+
+
+def is_fomc_statement(html: str) -> bool:
+    """TODO"""
+    soup = BeautifulSoup(html, "html.parser")
+    title = soup.title
+    if title is None:
+        return False
+    return title.get_text(strip=True).endswith(STATEMENT_TITLE)
 
 
 def url_date(url: str) -> date:

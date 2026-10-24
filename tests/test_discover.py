@@ -3,7 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from fomc_rag.discover import extract_links, historical_url, pair_meetings, url_date
+from fomc_rag.discover import (
+    extract_links,
+    historical_url,
+    is_fomc_statement,
+    pair_meetings,
+    url_date,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -81,3 +87,12 @@ def test_pair_meetings():
 
     assert meetings[1].meeting_date == date(2020, 3, 3)
     assert meetings[1].minutes_url is None
+
+
+def test_is_fomc_statement():
+    real = (FIXTURES / "monetary20200303a.htm").read_text(encoding="utf-8-sig")
+    not_statement = (FIXTURES / "monetary20191011a.htm").read_text(encoding="utf-8-sig")
+
+    assert is_fomc_statement(real)
+    assert not is_fomc_statement(not_statement)
+    assert not is_fomc_statement("<html><body>no title</body></html>")
