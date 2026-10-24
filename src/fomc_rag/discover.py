@@ -68,10 +68,17 @@ def fetch_links(
 
 
 def pair_meetings(statements: set[str], minutes: set[str]) -> list[Meeting]:
+    """Pair statements with same-date minutes; return meetings sorted by date."""
     minutes_by_date = {url_date(u): u for u in minutes}
-    print(minutes_by_date)
-    meetings = [Meeting()]
-    raise NotImplementedError
+    meetings = [
+        Meeting(
+            meeting_date=url_date(u),
+            statement_url=u,
+            minutes_url=minutes_by_date.get(url_date(u)),
+        )
+        for u in statements
+    ]
+    return sorted(meetings, key=lambda m: m.meeting_date)
 
 
 def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
@@ -89,10 +96,10 @@ def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
     statements = {u for u in statements if url_date(u).year >= start_year}
     minutes = {u for u in minutes if url_date(u).year >= start_year}
 
-    pair_meetings(statements=statements, minutes=minutes)
-    # print(statements, minutes)
-    # print(sorted({url_date(u).year for u in statements | minutes}))
+    meetings = pair_meetings(statements=statements, minutes=minutes)
+    return meetings
 
 
 if __name__ == "__main__":
-    discover_meetings(start_year=2023, cache_dir=Path("data/raw"))
+    meetings = discover_meetings(start_year=2019, cache_dir=Path("data/raw"))
+    print(meetings)

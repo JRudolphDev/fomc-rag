@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from fomc_rag.discover import extract_links, historical_url, url_date
+from fomc_rag.discover import extract_links, historical_url, pair_meetings, url_date
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -55,3 +55,29 @@ def test_historical_url():
         historical_url(2020)
         == "https://www.federalreserve.gov/monetarypolicy/fomchistorical2020.htm"
     )
+
+
+def test_pair_meetings():
+    statements = {
+        "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200303a.htm",
+        "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200129a.htm",
+    }
+    minutes = {
+        "https://www.federalreserve.gov/monetarypolicy/fomcminutes20200129.htm",
+        "https://www.federalreserve.gov/monetarypolicy/fomcminutes20200315.htm",
+    }
+
+    meetings = pair_meetings(statements, minutes)
+
+    assert len(meetings) == 2
+
+    assert meetings[0].meeting_date == date(2020, 1, 29)
+    assert meetings[0].statement_url == (
+        "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200129a.htm"
+    )
+    assert meetings[0].minutes_url == (
+        "https://www.federalreserve.gov/monetarypolicy/fomcminutes20200129.htm"
+    )
+
+    assert meetings[1].meeting_date == date(2020, 3, 3)
+    assert meetings[1].minutes_url is None
