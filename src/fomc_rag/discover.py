@@ -1,13 +1,23 @@
 """Find FOMC meetings from year pages: extract statement and minutes links, pair them by date, keep only real statements."""
 
+import logging
 import re
-from urllib.parse import urljoin
+from datetime import date, datetime
+from pathlib import Path
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
+
+from fomc_rag.fetch import fetch_cached
+from fomc_rag.models import Meeting
+
+logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.federalreserve.gov"
 STATEMENT_PATTERN = re.compile(r"/newsevents/pressreleases/monetary(\d{8})a\.htm")
 MINUTES_PATTERN = re.compile(r"/monetarypolicy/fomcminutes(\d{8})\.htm")
+CALENDAR_URL = urljoin(BASE_URL, "/monetarypolicy/fomccalendars.htm")
+STATEMENT_TITLE = "Federal Reserve issues FOMC statement"
 
 
 def extract_links(html: str) -> tuple[set[str], set[str]]:
@@ -26,3 +36,91 @@ def extract_links(html: str) -> tuple[set[str], set[str]]:
             minutes.add(urljoin(BASE_URL, href))
 
     return statements, minutes
+
+
+def is_fomc_statement(html: str) -> bool:
+    """TODO"""
+    soup = BeautifulSoup(html, "html.parser")
+    title = soup.title
+    if title is None:
+        return False
+    return title.get_text(strip=True).endswith(STATEMENT_TITLE)
+
+
+def url_date(url: str) -> date:
+    """Return the meeting date encoded in a statement or minutes URL."""
+    path = urlparse(url).path
+    m = STATEMENT_PATTERN.fullmatch(path) or MINUTES_PATTERN.fullmatch(path)
+
+    if m is None:
+        raise ValueError(f"no date in URL: {url}")
+
+    digits = m.group(1)
+    return datetime.strptime(digits, "%Y%m%d").date()
+
+
+def historical_url(year: int) -> str:
+    """Return the URL of the FOMC historical page for a year."""
+    return urljoin(BASE_URL, f"/monetarypolicy/fomchistorical{year}.htm")
+
+
+def fetch_links(
+    url: str, cache_dir: Path, refresh: bool = False
+) -> tuple[set[str], set[str]]:
+    """Fetch a year page and return its statement and minutes URLs."""
+    html = fetch_cached(url, cache_dir, refresh)
+    statements, minutes = extract_links(html)
+
+    if not statements and not minutes:
+        raise ValueError(
+            f"No statement or minutes links found on {url}. "
+            "The page layout or URL patterns may have changed."
+        )
+
+    return statements, minutes
+
+
+def pair_meetings(statements: set[str], minutes: set[str]) -> list[Meeting]:
+    """Pair statements with same-date minutes; return meetings sorted by date."""
+    minutes_by_date = {url_date(u): u for u in minutes}
+    meetings = [
+        Meeting(
+            meeting_date=url_date(u),
+            statement_url=u,
+            minutes_url=minutes_by_date.get(url_date(u)),
+        )
+        for u in statements
+    ]
+    return sorted(meetings, key=lambda m: m.meeting_date)
+
+
+def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
+    """Return meetings from start_year onward, paired and title-checked."""
+    statements, minutes = fetch_links(CALENDAR_URL, cache_dir, refresh=True)
+    boundary_year = min(url_date(u).year for u in statements | minutes)
+
+    for year in range(start_year, boundary_year):
+        year_url = historical_url(year)
+        year_statements, year_minutes = fetch_links(year_url, cache_dir, refresh=False)
+
+        statements |= year_statements
+        minutes |= year_minutes
+
+    statements = {u for u in statements if url_date(u).year >= start_year}
+    minutes = {u for u in minutes if url_date(u).year >= start_year}
+
+    checked: set[str] = set()
+    for u in sorted(statements):
+        html = fetch_cached(u, cache_dir)
+        if is_fomc_statement(html):
+            checked.add(u)
+        else:
+            logger.warning("Rejected non-statement: %s", u)
+
+    return pair_meetings(statements=checked, minutes=minutes)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    meetings = discover_meetings(start_year=2019, cache_dir=Path("data/raw"))
+    print(len(meetings))

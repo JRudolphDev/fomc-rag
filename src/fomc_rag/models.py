@@ -2,10 +2,12 @@
 
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class Meeting(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     meeting_date: date
     statement_url: str
     minutes_url: str | None
