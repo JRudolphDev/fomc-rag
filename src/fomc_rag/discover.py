@@ -1,5 +1,6 @@
 """Find FOMC meetings from year pages: extract statement and minutes links, pair them by date, keep only real statements."""
 
+import logging
 import re
 from datetime import date, datetime
 from pathlib import Path
@@ -9,6 +10,8 @@ from bs4 import BeautifulSoup
 
 from fomc_rag.fetch import fetch_cached
 from fomc_rag.models import Meeting
+
+logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.federalreserve.gov"
 STATEMENT_PATTERN = re.compile(r"/newsevents/pressreleases/monetary(\d{8})a\.htm")
@@ -106,10 +109,18 @@ def discover_meetings(start_year: int, cache_dir: Path) -> list[Meeting]:
     statements = {u for u in statements if url_date(u).year >= start_year}
     minutes = {u for u in minutes if url_date(u).year >= start_year}
 
-    meetings = pair_meetings(statements=statements, minutes=minutes)
-    return meetings
+    checked: set[str] = set()
+    for u in sorted(statements):
+        html = fetch_cached(u, cache_dir)
+        if is_fomc_statement(html):
+            checked.add(u)
+        else:
+            logger.warning("Rejected non-statement: %s", u)
+
+    return pair_meetings(statements=checked, minutes=minutes)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     meetings = discover_meetings(start_year=2019, cache_dir=Path("data/raw"))
-    print(meetings)
+    print(len(meetings))
