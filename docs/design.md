@@ -117,6 +117,13 @@ Each decision is made when its build step arrives.
 - **Why:** YAGNI. Statements are released on the meeting date. Minutes release dates appear only on year pages, so capturing them changes `extract_links` and `Meeting`. "Last Update" is an update date, not a release date. Adding it later is metadata only: no change to chunk text, embeddings or IDs, just an index rebuild from the cache.
 - **Revisit if:** Test questions need "what was public as of date X", or citations should show release dates.
 
+### IDs
+
+- **Choice:** `doc_id` is `{doc_type}-{meeting_date}`. `chunk_id` is `{doc_id}-{position}`, zero-padded (`minutes-2022-06-15-014`).
+- **Alternatives:** Section name in the chunk ID (`minutes-2022-06-15-participants-views-03`).
+- **Why:** `doc_id` is unique because discovery yields one statement and at most one minutes page per date. Keeping labels out of `chunk_id` removes one class of breakage: renaming a section key or fixing the heading classifier would otherwise change IDs for identical text and break the test set. The `section` field still carries the section.
+- **Revisit if:** Two documents of the same type ever share a meeting date.
+
 ### Raw data and fixtures
 
 - **Choice:** Raw HTML cache in `data/raw/`, gitignored. A few pages committed in `tests/fixtures/`.
@@ -159,11 +166,11 @@ Each decision is made when its build step arrives.
 
 | Field | Example | Purpose |
 |---|---|---|
-| `chunk_id` | `minutes-2022-06-15-participants-views-03` | Citation key, readable by eye |
+| `chunk_id` | `minutes-2022-06-15-014` | Citation key: `doc_id` plus zero-padded position in the document |
 | `doc_id` | `minutes-2022-06-15` | Source document |
 | `doc_type` | `statement` / `minutes` | Filtering |
 | `meeting_date` | `2022-06-15` | Links statement to minutes; date filtering |
-| `section` | `participants_views` | Section filtering; null for statements |
+| `section` | `participants_views` | Section filtering. Statements use `statement`: never null, so no null handling in the store, and no invented paragraph labels. |
 | `url` | Fed page URL | One step from citation to source |
 | `text` | chunk text | Embedded and shown to the model |
 
