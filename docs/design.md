@@ -50,12 +50,30 @@
 - **Heading traps:**
   - Heading and body share one `<p>`.
   - `<strong>` also marks vote labels, the date line and the signature.
-  - One-off sections appear (Annual Organizational Matters, Attendance).
+  - Non-core sections appear: routine (Annual Organizational Matters, Notation Vote, Attendance) and true one-offs (Long-Run Monetary Policy Implementation Frameworks in 2019; Review of Monetary Policy Strategy, Tools, and Communications in 2025).
+  - Footnote markers inside the heading: `<strong>Annual Organizational Matters<a href="#fn2"><sup>2</sup></a></strong>`.
+  - Date line dashes vary: `January 29-30, 2019` (hyphen) vs `January 28–29, 2025` (en dash).
   - Whitespace variants (`<p><br />` before a heading, empty `<strong> </strong>`).
 - **Heading rule:**
-  1. **Find:** a `<strong>` that is the first content of a `<p>` (ignoring whitespace and a leading `<br />`), followed by `<br />`.
-  2. **Reject:** text ending in `:` (vote labels); text that is a date (date line); a `<p>` with `text-align:center` (signature).
-  3. **Classify:** match a core section case-insensitively (Action = Actions) and store its key: `financial_markets`, `economic_situation`, `financial_situation`, `staff_outlook`, `participants_views`, `policy_action`. Otherwise store a slug of the heading (e.g. `annual_organizational_matters`) and log it.
+  1. **Find:** a `<strong>` that is the first content of a `<p>` (ignoring whitespace and a leading `<br />`), followed by `<br />`. Remove `<sup>` tags (footnote markers) before reading its text: use the markup, not a guess from the text.
+  2. **Reject:**
+     - Text ending in `:` (vote labels).
+     - Date line: a month name, a space, 1 or 2 digits, not followed by another digit. Matches `January 29-30` and `March 15,` whatever the dash; keeps a heading like `March 2020 Actions`.
+     - A `<p>` with `text-align:center` (signature block).
+  3. **Classify:** match a core section case-insensitively (Action = Actions) and store its key: `financial_markets`, `economic_situation`, `financial_situation`, `staff_outlook`, `participants_views`, `policy_action`. Otherwise store a slug of the heading (e.g. `annual_organizational_matters`).
+- **Heading logging:** both directions, so a misclassification either way is visible.
+
+  | Case | Level |
+  |---|---|
+  | Expected reject (date line, vote label, signature), with its text | DEBUG |
+  | Per-document summary: section count, non-core names, reject count | INFO |
+  | Known routine non-core heading | summary only |
+  | Unknown non-core heading | WARNING |
+
+  - **Known routine headings (allowlist):** `annual_organizational_matters`, `notation_vote`, `attendance`.
+  - True one-offs are left off the list on purpose: they warn once, get reviewed, and are added only if they recur.
+  - A false reject (a real heading dropped) shows at DEBUG; a false accept (junk kept as a section) shows as a WARNING.
+  - Tradeoff: the allowlist needs upkeep. Each new routine heading is added once, after its warning is reviewed.
 
 ## 3. Pipeline
 
