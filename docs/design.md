@@ -101,7 +101,7 @@ Each decision is made when its build step is reached, not up front.
 
 ### Statement filter
 
-- **Choice:** Title check. Keep a fetched statement candidate only if its title is "Federal Reserve issues FOMC statement". Log every rejected URL.
+- **Choice:** Title check. Keep a fetched statement candidate only if its title ends with "Federal Reserve issues FOMC statement". Log every rejected URL.
 - **Alternatives:** Link-text rules per page layout.
 - **Why:** One rule for every year and both page layouts. Pages are fetched and cached anyway, so the check costs nothing extra.
 - **Revisit if:** The log shows a real statement rejected, or a non-statement kept.
