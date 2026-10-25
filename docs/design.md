@@ -19,7 +19,7 @@
 
 ### Data quirks
 
-- **Two dates per document:** Key on meeting date (last day of the meeting). Store release date separately. Minutes come out about three weeks later, so the newest meeting may have no minutes yet. Fed URLs already use the meeting date (`monetary20190130a.htm`, `fomcminutes20190130.htm`).
+- **Two dates per document:** Key on meeting date (last day of the meeting). Release date is not stored for now (see Decisions: Release date). Minutes come out about three weeks later, so the newest meeting may have no minutes yet. Fed URLs already use the meeting date (`monetary20190130a.htm`, `fomcminutes20190130.htm`).
 - **2020 extra links:** 12 statement-pattern URLs, 8 minutes.
   - Mar 3 and Mar 23: emergency FOMC statements with no minutes page of their own. Mar 3 minutes are at the end of the Mar 15 minutes.
   - Mar 31 (FIMA repo facility) and Aug 27 (Statement on Longer-Run Goals): not post-meeting statements. Out of scope.
@@ -120,6 +120,13 @@ Each decision is made when its build step is reached, not up front.
 - **Why:** A meeting is a fact from discovery. Freezing stops later steps from changing one silently and makes it hashable for sets and dict keys. Pairing builds a `{date: minutes_url}` dict first, so each `Meeting` is created once with everything known. Minutes published later are picked up on the next run, which builds new objects.
 - **Revisit if:** A step needs to enrich meetings in place.
 
+### Release date
+
+- **Choice:** Not stored for now. Documents and chunks carry `meeting_date` only.
+- **Alternatives:** Capture "(Released ...)" next to minutes links during discovery; parse "Last Update" from the minutes page.
+- **Why:** YAGNI. No current requirement needs it. Statements are released on the meeting date. For minutes, the release date only appears on the year pages, so capturing it means changing `extract_links` and `Meeting`. "Last Update" is an update date, not a release date. Adding it later is metadata only: no change to chunk text, embeddings or chunk IDs, just an index rebuild from the cache.
+- **Revisit if:** Test questions need "what was public as of date X", or citations need to show when a document went public.
+
 ### Vector store
 
 - **Decide when:** Before the Store step.
@@ -148,7 +155,6 @@ Each decision is made when its build step is reached, not up front.
 | `doc_id` | `minutes-2022-06-15` | Source document |
 | `doc_type` | `statement` / `minutes` | Filtering |
 | `meeting_date` | `2022-06-15` | Links statement to minutes; date filtering |
-| `release_date` | `2022-07-06` | When it went public |
 | `section` | `participants_views` | Section filtering; null for statements |
 | `url` | Fed page URL | One step from citation to source |
 | `text` | chunk text | What gets embedded and shown to the model |
