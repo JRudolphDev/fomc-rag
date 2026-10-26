@@ -29,4 +29,4 @@ class Document(BaseModel):
     doc_type: Literal["statement", "minutes"]
     meeting_date: date
     url: str
-    sections: tuple[Section]
+    sections: tuple[Section, ...]
