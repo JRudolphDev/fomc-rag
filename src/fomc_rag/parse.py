@@ -34,12 +34,10 @@ def parse_statement(html: str, meeting_date: date, url: str) -> Document:
             continue  # header lines and empty <p>
         text = p.get_text(" ", strip=True)
         if is_implementation_note(p):
-            logger.debug(
-                logger.debug("Dropped Implementation Note in %s: %s", url, text)
-            )
+            logger.debug("Dropped Implementation Note in %s: %s", url, text)
             continue
-        if text.startswith(""):  # TODO
-            logger.debug("")  # TODO
+        if text.startswith("For media inquiries"):
+            logger.debug("Dropped media contact line in %s: %s", url, text)
             continue
         paragraphs.append(text)
 
@@ -48,9 +46,18 @@ def parse_statement(html: str, meeting_date: date, url: str) -> Document:
 
     section = Section(key="statement", heading=title, text="\n\n".join(paragraphs))
     return Document(
-        doc_id=,  # TODO
+        doc_id=section,  # TODO
         doc_type="statement",
         meeting_date=meeting_date,
         url=url,
         sections=(section,),
     )
+
+
+if __name__ == "__main__":
+    from bs4 import BeautifulSoup
+
+    from fomc_rag.models import Section
+
+    t = BeautifulSoup('<h3 class="title">Hi</h3>', "html.parser").h3
+    Section(key="k", heading=t, text="x")
