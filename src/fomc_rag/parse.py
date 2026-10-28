@@ -1,3 +1,5 @@
+"""Parse statement and minutes pages into Documents: keep the article text, split minutes into sections, drop boilerplate."""
+
 import logging
 from datetime import date
 
@@ -19,7 +21,7 @@ def is_implementation_note(p: Tag) -> bool:
 
 
 def parse_statement(html: str, meeting_date: date, url: str) -> Document:
-    """One line."""
+    """Parse a statement page into a one-section Document, minus the Implementation Note and media lines."""
     soup = BeautifulSoup(html, "html.parser")
     article = soup.find("div", id="article")
     if article is None:
@@ -27,6 +29,7 @@ def parse_statement(html: str, meeting_date: date, url: str) -> Document:
     title = article.find("h3", class_="title")
     if title is None:
         raise ValueError(f"No <h3 class='title'> in div#article of {url}")
+    heading = title.get_text(" ", strip=True)
 
     paragraphs: list[str] = []
     for p in article.find_all("p"):
@@ -44,20 +47,11 @@ def parse_statement(html: str, meeting_date: date, url: str) -> Document:
     if not paragraphs:
         raise ValueError(f"No statement paragraphs found in {url}")
 
-    section = Section(key="statement", heading=title, text="\n\n".join(paragraphs))
+    section = Section(key="statement", heading=heading, text="\n\n".join(paragraphs))
     return Document(
-        doc_id=section,  # TODO
+        doc_id=f"statement-{meeting_date.isoformat()}",
         doc_type="statement",
         meeting_date=meeting_date,
         url=url,
         sections=(section,),
     )
-
-
-if __name__ == "__main__":
-    from bs4 import BeautifulSoup
-
-    from fomc_rag.models import Section
-
-    t = BeautifulSoup('<h3 class="title">Hi</h3>', "html.parser").h3
-    Section(key="k", heading=t, text="x")
