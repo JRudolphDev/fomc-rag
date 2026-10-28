@@ -31,8 +31,9 @@
   - Historical pages (2019, 2020): link text "Statement".
   - Calendar page (2021 on): a `<strong>Statement:</strong>` label, then "PDF" and "HTML" links.
 - **Statement titles:** `<title>` is "Federal Reserve Board - Federal Reserve issues FOMC statement". Note the prefix.
+- **Lookalike characters:** Statement text contains U+2011 (non-breaking hyphen), which looks like `-` but is a different character. A test or keyword search for `longer-run` typed with `-` will miss it. Normalizing is decided at chunking.
 - **Page scope:** Parse only inside `<div id="article">`. Site navigation is full of `<strong>` tags.
-- **Statements:** No headings. About four `<p>`: conditions, decision, guidance, vote.
+- **Statements:** No headings. Usually four to seven `<p>`: conditions, decision, guidance, vote; a few have more.
 - **Minutes headings:** A `<strong>` at the start of a `<p>`, then `<br />`, then the first paragraph in the same `<p>`:
 
   ```html
@@ -134,6 +135,13 @@ Each decision is made when its build step arrives.
 - **Alternatives:** Capture "(Released ...)" from year pages during discovery; parse "Last Update" from the minutes page.
 - **Why:** YAGNI. Statements are released on the meeting date. Minutes release dates appear only on year pages, so capturing them changes `extract_links` and `Meeting`. "Last Update" is an update date, not a release date. Adding it later is metadata only: no change to chunk text, embeddings or IDs, just an index rebuild from the cache.
 - **Revisit if:** Test questions need "what was public as of date X", or citations should show release dates.
+
+### Statement text
+
+- **Choice:** Keep every class-less, non-empty `<p>` inside `div#article`. Drop a `<p>` whose only content is a link to an Implementation Note (`...a1.htm`), and a `<p>` starting "For media inquiries". Keep everything else, including the vote and anything after it. Join paragraphs with a blank line. Raise `ValueError` if nothing is kept. Log both drops at DEBUG.
+- **Alternatives:** Keep only paragraphs up to the vote; match boilerplate by text for both drops.
+- **Why:** Surveyed all 64 statements. Header lines (date, release time) always carry a class; body paragraphs never do. The Implementation Note is detected by structure (a lone link to `a1.htm`), so a real sentence that mentions it is kept. The media line has no structural signal, so a text prefix is the only option. Stopping at the vote would drop real content in 3 statements and breaks on 4 that word the vote differently. A blank-line join keeps paragraph boundaries so chunking can still split on them.
+- **Revisit if:** A new boilerplate line shows up in statement text, or the DEBUG log shows a real paragraph dropped.
 
 ### IDs
 
