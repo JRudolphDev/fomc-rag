@@ -1,6 +1,7 @@
 """Parse statement and minutes pages into Documents: keep the article text, split minutes into sections, drop boilerplate."""
 
 import logging
+import re
 from datetime import date
 
 from bs4 import BeautifulSoup, Tag
@@ -8,6 +9,14 @@ from bs4 import BeautifulSoup, Tag
 from fomc_rag.models import Document, Section
 
 logger = logging.getLogger(__name__)
+
+MONTHS_ALTERNATION = "January|February|March|April|May|June|July|August|September|October|November|December"
+DATE_LINE_PATTERN = re.compile(rf"(?:{MONTHS_ALTERNATION}) \d{{1,2}}(?!\d)")
+
+
+def is_date_line(text: str) -> bool:
+    """True if the text starts with a meeting date."""
+    return DATE_LINE_PATTERN.match(text) is not None
 
 
 def is_implementation_note(p: Tag) -> bool:

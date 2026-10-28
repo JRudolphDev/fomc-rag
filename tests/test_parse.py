@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 from bs4 import BeautifulSoup
 
-from fomc_rag.parse import is_implementation_note, parse_statement
+from fomc_rag.parse import is_date_line, is_implementation_note, parse_statement
 
 FIXTURES = Path(__file__).parent / "fixtures"
-CASES = [
+IMPLEMENTATION_NOTE_CASES = [
     ("<p>No links here.</p>", False),
     (
         '<p><a href="/newsevents/pressreleases/monetary20250129a1.htm">Implementation Note issued January 29, 2025</a></p>',
@@ -19,16 +19,32 @@ CASES = [
     ),
     ("<p><a>no href</a></p>", False),
 ]
+DATE_LINE_CASES = [
+    ("January 29-30, 2019", True),
+    ("January 28\u201329, 2025", True),  # en dash
+    ("March 15, 2020", True),
+    ("March 2020 Actions", False),
+    ("Developments in Financial Markets and Open Market Operations", False),
+]
 
 
 @pytest.mark.parametrize(
     "html, expected",
-    CASES,
-    ids=["no_links", "only_link", "senece_plus_link", "no_href"],
+    IMPLEMENTATION_NOTE_CASES,
+    ids=["no_links", "only_link", "sentence_plus_link", "no_href"],
 )
 def test_is_implementation_note(html, expected):
     p = BeautifulSoup(html, "html.parser").p
     assert is_implementation_note(p) == expected, html
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    DATE_LINE_CASES,
+    ids=["hyphen", "en_dash", "single_day", "year_not_day", "heading"],
+)
+def test_is_date_line(text, expected):
+    assert is_date_line(text) == expected, text
 
 
 def test_parse_statement():
