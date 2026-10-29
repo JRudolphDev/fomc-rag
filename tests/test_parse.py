@@ -4,7 +4,12 @@ from pathlib import Path
 import pytest
 from bs4 import BeautifulSoup
 
-from fomc_rag.parse import is_date_line, is_implementation_note, parse_statement
+from fomc_rag.parse import (
+    classify_heading,
+    is_date_line,
+    is_implementation_note,
+    parse_statement,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 IMPLEMENTATION_NOTE_CASES = [
@@ -26,6 +31,16 @@ DATE_LINE_CASES = [
     ("March 2020 Actions", False),
     ("Developments in Financial Markets and Open Market Operations", False),
 ]
+CLASSIFY_CASES = [
+    ("Committee Policy Action", "policy_action"),
+    ("Committee Policy Actions", "policy_action"),
+    ("STAFF ECONOMIC OUTLOOK", "staff_outlook"),
+    ("Annual Organizational Matters", "annual_organizational_matters"),
+    (
+        "Review of Monetary Policy Strategy, Tools, and Communications",
+        "review_of_monetary_policy_strategy_tools_and_communications",
+    ),
+]
 
 
 @pytest.mark.parametrize(
@@ -45,6 +60,21 @@ def test_is_implementation_note(html, expected):
 )
 def test_is_date_line(text, expected):
     assert is_date_line(text) == expected, text
+
+
+@pytest.mark.parametrize(
+    "heading, expected",
+    CLASSIFY_CASES,
+    ids=[
+        "action_2019",
+        "actions_2025",
+        "case_insensitive",
+        "routine_slug",
+        "punctuation_slug",
+    ],
+)
+def test_classify_heading(heading, expected):
+    assert classify_heading(heading) == expected, heading
 
 
 def test_parse_statement():

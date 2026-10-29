@@ -12,11 +12,30 @@ logger = logging.getLogger(__name__)
 
 MONTHS_ALTERNATION = "January|February|March|April|May|June|July|August|September|October|November|December"
 DATE_LINE_PATTERN = re.compile(rf"(?:{MONTHS_ALTERNATION}) \d{{1,2}}(?!\d)")
+CORE_SECTIONS = {
+    "developments in financial markets and open market operations": "financial_markets",
+    "staff review of the economic situation": "economic_situation",
+    "staff review of the financial situation": "financial_situation",
+    "staff economic outlook": "staff_outlook",
+    "participants' views on current conditions and the economic outlook": "participants_views",
+    "committee policy action": "policy_action",  # 2019 spelling
+    "committee policy actions": "policy_action",  # 2025 spelling
+}
 
 
 def is_date_line(text: str) -> bool:
     """True if the text starts with a meeting date."""
     return DATE_LINE_PATTERN.match(text) is not None
+
+
+def slugify(text: str) -> str:
+    """Lowercase the text and join its words with single underscores, e.g. 'Notation Vote' -> 'notation_vote'."""
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
+def classify_heading(heading: str) -> str:
+    """Return the core section key for a minutes heading, or a slug of the heading if it is not core."""
+    return CORE_SECTIONS.get(heading.lower(), slugify(heading))
 
 
 def is_implementation_note(p: Tag) -> bool:
@@ -64,3 +83,8 @@ def parse_statement(html: str, meeting_date: date, url: str) -> Document:
         url=url,
         sections=(section,),
     )
+
+
+if __name__ == "__main__":
+    head = "committee policy actions test"
+    print(classify_heading(head))
