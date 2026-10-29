@@ -83,8 +83,3 @@ def parse_statement(html: str, meeting_date: date, url: str) -> Document:
         url=url,
         sections=(section,),
     )
-
-
-if __name__ == "__main__":
-    head = "committee policy actions test"
-    print(classify_heading(head))
