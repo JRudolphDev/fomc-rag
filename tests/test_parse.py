@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 
 from fomc_rag.parse import (
     classify_heading,
+    heading_candidate,
     is_date_line,
     is_implementation_note,
     parse_statement,
@@ -41,6 +42,17 @@ CLASSIFY_CASES = [
         "review_of_monetary_policy_strategy_tools_and_communications",
     ),
 ]
+HEADING_CANDIDATE_CASES = [
+    # heading after a leading <br>, body text in the same <p>
+    (
+        "<p><br /><strong>Staff Economic Outlook</strong><br />The staff projection...</p>",
+        "Staff Economic Outlook",
+    ),
+    # bold word mid-sentence, not a heading
+    ("<p>The Committee <strong>agreed</strong> to...</p>", None),
+    # empty <strong> mid-sentence (real, 2019 fixture line 1862)
+    ("<p>the labor market.<strong> </strong>These factors may change</p>", None),
+]
 
 
 @pytest.mark.parametrize(
@@ -75,6 +87,17 @@ def test_is_date_line(text, expected):
 )
 def test_classify_heading(heading, expected):
     assert classify_heading(heading) == expected, heading
+
+
+@pytest.mark.parametrize(
+    "html, expected",
+    HEADING_CANDIDATE_CASES,
+    ids=["leading_br", "inline_bold", "empty"],
+)
+def test_heading_candidate(html, expected):
+    p = BeautifulSoup(html, "html.parser").p
+    result = heading_candidate(p)
+    assert (result.get_text(strip=True) if result else result) == expected
 
 
 def test_parse_statement():
