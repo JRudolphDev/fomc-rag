@@ -4,7 +4,7 @@ import logging
 import re
 from datetime import date
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 from fomc_rag.models import Document, Section
 
@@ -83,3 +83,14 @@ def parse_statement(html: str, meeting_date: date, url: str) -> Document:
         url=url,
         sections=(section,),
     )
+
+
+def heading_candidate(p: Tag) -> Tag | None:
+    """Return the <strong> that starts the paragraph, ignoring whitespace and <br>, or None."""
+    for child in p.children:
+        if isinstance(child, NavigableString) and not child.strip():
+            continue  # whitespace: keep looking
+        if child.name == "br":
+            continue  # a leading <br>: keep looking
+        return child if child.name == "strong" else None
+    return None
