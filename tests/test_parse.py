@@ -10,6 +10,7 @@ from fomc_rag.parse import (
     is_date_line,
     is_implementation_note,
     parse_statement,
+    reject_reason,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -52,6 +53,15 @@ HEADING_CANDIDATE_CASES = [
     ("<p>The Committee <strong>agreed</strong> to...</p>", None),
     # empty <strong> mid-sentence (real, 2019 fixture line 1862)
     ("<p>the labor market.<strong> </strong>These factors may change</p>", None),
+]
+REJECT_REASON_CASES = [
+    ("<p><strong>Voting for this action:</strong></p>", "vote label"),
+    ("<p><strong>January 28\u201329, 2025</strong><br/></p>", "date line"),
+    (
+        '<p style="text-align:center"><strong>Joshua Gallin</strong><br/>Secretary</p>',
+        "signature",
+    ),
+    ("<p><strong>Staff Economic Outlook</strong><br/>The staff...</p>", None),
 ]
 
 
@@ -97,7 +107,20 @@ def test_classify_heading(heading, expected):
 def test_heading_candidate(html, expected):
     p = BeautifulSoup(html, "html.parser").p
     result = heading_candidate(p)
-    assert (result.get_text(strip=True) if result else result) == expected
+    assert (
+        result.get_text(" ", strip=True) if result is not None else result
+    ) == expected, html
+
+
+@pytest.mark.parametrize(
+    "html, expected",
+    REJECT_REASON_CASES,
+    ids=["vote_label", "date_line", "signature", "valid_heading"],
+)
+def test_reject_reason(html, expected):
+    p = BeautifulSoup(html, "html.parser").p
+    text = p.strong.get_text(" ", strip=True)
+    assert reject_reason(p, text) == expected, html
 
 
 def test_parse_statement():

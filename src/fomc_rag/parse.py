@@ -94,3 +94,14 @@ def heading_candidate(p: Tag) -> Tag | None:
             continue  # a leading <br>: keep looking
         return child if child.name == "strong" else None
     return None
+
+
+def reject_reason(p: Tag, text: str) -> str | None:
+    """Return why a heading candidate is rejected (vote label, date line, signature), else None."""
+    if text.endswith(":"):
+        return "vote label"
+    if is_date_line(text):
+        return "date line"
+    if "text-align:center" in p.get("style", ""):
+        return "signature"
+    return None
