@@ -10,6 +10,7 @@ from fomc_rag.parse import (
     is_date_line,
     is_footnote,
     is_implementation_note,
+    parse_minutes,
     parse_statement,
     reject_reason,
 )
@@ -79,6 +80,43 @@ FOOTNOTE_CASES = [
     ),
     ("<p>Participants agreed that...</p>", False),
 ]
+MINUTES_CASES = [
+    (
+        "fomcminutes20190130.htm",
+        date(2019, 1, 30),
+        "minutes-2019-01-30",
+        (
+            "preamble",
+            "annual_organizational_matters",
+            "financial_markets",
+            "long_run_monetary_policy_implementation_frameworks",
+            "economic_situation",
+            "financial_situation",
+            "staff_outlook",
+            "participants_views",
+            "policy_action",
+            "notation_vote",
+        ),
+    ),
+    (
+        "fomcminutes20250129.htm",
+        date(2025, 1, 29),
+        "minutes-2025-01-29",
+        (
+            "preamble",
+            "annual_organizational_matters",
+            "review_of_monetary_policy_strategy_tools_and_communications",
+            "financial_markets",
+            "economic_situation",
+            "financial_situation",
+            "staff_outlook",
+            "participants_views",
+            "policy_action",
+            "notation_vote",
+            "attendance",
+        ),
+    ),
+]
 
 
 @pytest.mark.parametrize(
@@ -147,6 +185,29 @@ def test_reject_reason(html, expected):
 def test_is_footnote(html, expected):
     p = BeautifulSoup(html, "html.parser").p
     assert is_footnote(p) == expected, html
+
+
+@pytest.mark.parametrize(
+    "filename, meeting_date, expected_id, expected_keys",
+    MINUTES_CASES,
+    ids=["2019", "2025"],
+)
+def test_parse_minutes(filename, meeting_date, expected_id, expected_keys):
+    html = (FIXTURES / filename).read_text(encoding="utf-8-sig")
+    url = f"https://www.federalreserve.gov/monetarypolicy/{filename}"
+    doc = parse_minutes(html, meeting_date, url)
+    keys = tuple(s.key for s in doc.sections)
+    headings = [s.heading for s in doc.sections]
+    all_text = "\n\n".join(s.text for s in doc.sections)
+
+    assert doc.doc_id == expected_id
+    assert keys == expected_keys
+    assert (
+        doc.sections[0].heading == "Minutes of the Federal Open Market Committee"
+    )  # preamble uses the page <h3>
+    assert "Annual Organizational Matters" in headings  # footnote digit stripped
+    assert "Return to text" not in all_text  # footnotes dropped
+    assert not any(h.endswith(":") for h in headings)  # vote labels rejected
 
 
 def test_parse_statement():
