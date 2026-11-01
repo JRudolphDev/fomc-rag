@@ -97,6 +97,7 @@ MINUTES_CASES = [
             "policy_action",
             "notation_vote",
         ),
+        "Cavallo, 2",
     ),
     (
         "fomcminutes20250129.htm",
@@ -115,6 +116,7 @@ MINUTES_CASES = [
             "notation_vote",
             "attendance",
         ),
+        "Altig, 4",
     ),
 ]
 
@@ -188,11 +190,13 @@ def test_is_footnote(html, expected):
 
 
 @pytest.mark.parametrize(
-    "filename, meeting_date, expected_id, expected_keys",
+    "filename, meeting_date, expected_id, expected_keys, leaked_marker",
     MINUTES_CASES,
     ids=["2019", "2025"],
 )
-def test_parse_minutes(filename, meeting_date, expected_id, expected_keys):
+def test_parse_minutes(
+    filename, meeting_date, expected_id, expected_keys, leaked_marker
+):
     html = (FIXTURES / filename).read_text(encoding="utf-8-sig")
     url = f"https://www.federalreserve.gov/monetarypolicy/{filename}"
     doc = parse_minutes(html, meeting_date, url)
@@ -208,6 +212,7 @@ def test_parse_minutes(filename, meeting_date, expected_id, expected_keys):
     assert "Annual Organizational Matters" in headings  # footnote digit stripped
     assert "Return to text" not in all_text  # footnotes dropped
     assert not any(h.endswith(":") for h in headings)  # vote labels rejected
+    assert leaked_marker not in all_text  # footnote digits stripped from body text
 
 
 def test_parse_statement():
