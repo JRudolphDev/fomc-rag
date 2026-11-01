@@ -27,6 +27,7 @@
   - Aug 27 2020 and Aug 22 2025: Statement on Longer-Run Goals.
 - **Emergency meetings, 2020:** Mar 3 and Mar 23 have statements but no minutes page. Mar 3 minutes sit at the end of the Mar 15 minutes.
 - **Known limitation:** Mar 3 2020 minutes are stored under Mar 15. A date filter for Mar 3 misses them.
+- **Known limitation:** Minutes table content (officer roster, swap line amounts) is not parsed. Questions about those facts will miss, and the sentence that introduces a table ("the following officers... were selected:") is kept without it. See Decisions: Minutes text.
 - **Two year page layouts:**
   - Historical pages (2019, 2020): link text "Statement".
   - Calendar page (2021 on): a `<strong>Statement:</strong>` label, then "PDF" and "HTML" links.
@@ -34,6 +35,8 @@
 - **Lookalike characters:** Statement text contains U+2011 (non-breaking hyphen), which looks like `-` but is a different character. A test or keyword search for `longer-run` typed with `-` will miss it. Normalizing is decided at chunking.
 - **Page scope:** Parse only inside `<div id="article">`. Site navigation is full of `<strong>` tags.
 - **Statements:** No headings. Usually four to seven `<p>`: conditions, decision, guidance, vote; a few have more.
+- **Minutes footnotes:** The footnote text sits in `<p>` tags at the end of the article. Each starts with an `<a name="fnN">` anchor and ends "Return to text" (6 in 2019, 8 in 2025). The markers that point to them (`<a href="#fnN"><sup>N</sup></a>`) appear in headings and mid-sentence in body text (`Cavallo,2 and`).
+- **Minutes tables:** A few facts sit in `<table>` tags with no `<p>` inside: the officer roster (2019, 2025) and swap line amounts (2019). All are in Annual Organizational Matters, so January minutes only. About 550 to 700 characters per page.
 - **Minutes headings:** A `<strong>` at the start of a `<p>`, then `<br />`, then the first paragraph in the same `<p>`:
 
   ```html
@@ -52,16 +55,20 @@
   - Heading and body share one `<p>`.
   - `<strong>` also marks vote labels, the date line and the signature.
   - Non-core sections appear: routine (Annual Organizational Matters, Notation Vote, Attendance) and true one-offs (Long-Run Monetary Policy Implementation Frameworks in 2019; Review of Monetary Policy Strategy, Tools, and Communications in 2025).
-  - Footnote markers inside the heading: `<strong>Annual Organizational Matters<a href="#fn2"><sup>2</sup></a></strong>`.
+  - Footnote markers sit inside the heading in 2025 (`<strong>Annual Organizational Matters<a href="#fn2"><sup>2</sup></a></strong>`) but after it in 2019 (`<strong>Annual Organizational Matters</strong><a href="#fn4"><sup>4</sup></a><a name="f4"></a><br />`).
   - Date line dashes vary: `January 29-30, 2019` (hyphen) vs `January 28–29, 2025` (en dash).
   - Whitespace variants (`<p><br />` before a heading, empty `<strong> </strong>`).
 - **Heading rule:**
-  1. **Find:** a `<strong>` that is the first content of a `<p>` (ignoring whitespace and a leading `<br />`), followed by `<br />`. Remove `<sup>` tags (footnote markers) before reading its text: use the markup, not a guess from the text.
+  0. **Clean once:** before the loop, remove every `<sup>` in the article. Footnote numbers then leak into neither heading text (2025 `..._2` keys) nor body text (`Cavallo, 2`). Use the markup, not a guess from the text.
+  1. **Find:** a `<strong>` that is the first child of a `<p>`, skipping whitespace and `<br />`. Nothing is required after it. An earlier draft also required a following `<br />`; dropped, because in 2019 a footnote marker sits between the `</strong>` and the `<br />` (see Heading traps) and would false-reject Annual Organizational Matters.
   2. **Reject:**
      - Text ending in `:` (vote labels).
      - Date line: a month name, a space, 1 or 2 digits, not followed by another digit. Matches `January 29-30` and `March 15,` whatever the dash; keeps a heading like `March 2020 Actions`.
      - A `<p>` with `text-align:center` (signature block).
-  3. **Classify:** match a core section case-insensitively (Action = Actions) and store its key: `financial_markets`, `economic_situation`, `financial_situation`, `staff_outlook`, `participants_views`, `policy_action`. Otherwise store a slug of the heading (e.g. `annual_organizational_matters`).
+     - A rejected candidate is not a heading, but its `<p>` is kept as body text in the current section: vote labels and names stay with the policy decision, the date line in the preamble, the signature in the last section.
+  3. **Classify:** look up the lowercased heading in a dict of core sections and store its key: `financial_markets`, `economic_situation`, `financial_situation`, `staff_outlook`, `participants_views`, `policy_action`. Otherwise store a slug of the heading: lowercase, each run of non-alphanumeric characters becomes `_` (e.g. `annual_organizational_matters`).
+     - **Known variants are data:** "Committee Policy Action" (2019) and "Committee Policy Actions" (2025) are two dict entries for one key. No general rule (such as stripping a trailing `s`) that would touch every heading.
+     - **Unseen variants rely on the WARNING:** a variant not in the dict (for example a curly apostrophe in "Participants' Views") falls through to a slug and raises the unknown-section WARNING. That is the signal to add an entry. No blanket normalization for a problem not yet seen.
 - **Heading logging:** both directions, so a misclassification either way is visible.
 
   | Case | Level |
@@ -142,6 +149,25 @@ Each decision is made when its build step arrives.
 - **Alternatives:** Keep only paragraphs up to the vote; match boilerplate by text for both drops.
 - **Why:** Surveyed all 64 statements. Header lines (date, release time) always carry a class; body paragraphs never do. The Implementation Note is detected by structure (a lone link to `a1.htm`), so a real sentence that mentions it is kept. The media line has no structural signal, so a text prefix is the only option. Stopping at the vote would drop real content in 3 statements and breaks on 4 that word the vote differently. A blank-line join keeps paragraph boundaries so chunking can still split on them.
 - **Revisit if:** A new boilerplate line shows up in statement text, or the DEBUG log shows a real paragraph dropped.
+
+### Minutes text
+
+- **Choice:** One `Section` per accepted heading (see Heading rule), plus a `preamble` section for the text before the first heading.
+  - **Preamble:** key `preamble`, heading taken from the page `<h3>` ("Minutes of the Federal Open Market Committee").
+  - **Heading and body:** read the heading text from the `<strong>`, then `decompose()` it, so the rest of that `<p>` becomes the section's first paragraph.
+  - **Group then build:** the loop collects raw `(key, heading, paragraphs)` groups with no empty check. One step after the loop joins each group with a blank line into a `Section` and skips empty groups. Raise `ValueError` if no section has text.
+  - **Footnotes dropped:** a `<p>` that starts with an `<a name="fnN">` anchor is skipped and logged at DEBUG (see Data quirks: Minutes footnotes).
+  - **Signature kept:** the centered signature lines stay at the end of the last section.
+  - **Tables not parsed:** only `<p>` text is kept (see Data quirks: Minutes tables).
+- **Alternatives:** Name the opening section `attendance`; build each `Section` at flush time, with the empty check in two places; keep footnotes in the last section; drop the signature with a new rule; parse tables with `get_text`.
+- **Why:**
+  - `preamble` names the position, not the content. In 2019 the opening is about 40 `<p>` of attendees; in 2025 it is one sentence, with a separate Attendance section. `preamble` is true every year.
+  - Heading and body share one `<p>` (see Heading traps). Reading then removing the `<strong>` splits them without losing the first paragraph.
+  - Group then build keeps the empty check and `Section` construction in one place: no helper, no two copies to drift.
+  - Footnotes landed in the last section (Notation Vote or Attendance), so a chunk would cite them under the wrong section. The anchor is structure, so no text match is needed.
+  - The signature is a few words (name, "Secretary") with no wrong-section risk worth a new rule.
+  - Tables hold administrative facts only (officer roster, swap line amounts), about 550 to 700 characters in roughly 8 of 62 pages. `get_text` flattens rows and columns into hard-to-read text. The focus is monetary policy; tables can be added later if a test question needs them.
+- **Revisit if:** A test question needs officer or swap line facts; the WARNING log shows a heading variant; the DEBUG log shows a real paragraph dropped as a footnote.
 
 ### IDs
 
