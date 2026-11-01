@@ -8,6 +8,7 @@ from fomc_rag.parse import (
     classify_heading,
     heading_candidate,
     is_date_line,
+    is_footnote,
     is_implementation_note,
     parse_statement,
     reject_reason,
@@ -62,6 +63,21 @@ REJECT_REASON_CASES = [
         "signature",
     ),
     ("<p><strong>Staff Economic Outlook</strong><br/>The staff...</p>", None),
+]
+FOOTNOTE_CASES = [
+    (
+        '<p><a name="fn1"></a>1. The Federal Open Market Committee is referenced as the "FOMC". <a href="#f1">Return to text</a></p>',
+        True,
+    ),
+    (
+        '<p><a name="fn3"></a>3. The SLOOS results reported are based on... <a href="#f3">Return to text</a></p>',
+        True,
+    ),
+    (
+        '<p><strong>Annual Organizational Matters</strong><a href="#fn4" title="footnote 4"></a><a name="f4"></a><br/>In the agenda...</p>',
+        False,
+    ),
+    ("<p>Participants agreed that...</p>", False),
 ]
 
 
@@ -121,6 +137,16 @@ def test_reject_reason(html, expected):
     p = BeautifulSoup(html, "html.parser").p
     text = p.strong.get_text(" ", strip=True)
     assert reject_reason(p, text) == expected, html
+
+
+@pytest.mark.parametrize(
+    "html, expected",
+    FOOTNOTE_CASES,
+    ids=["footnote", "footnote_not_first", "marker_anchor", "plain"],
+)
+def test_is_footnote(html, expected):
+    p = BeautifulSoup(html, "html.parser").p
+    assert is_footnote(p) == expected, html
 
 
 def test_parse_statement():
