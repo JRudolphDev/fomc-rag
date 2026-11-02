@@ -1,18 +1,6 @@
-import pytest
-
 from fomc_rag.fetch import fetch_cached
 
 URL = "https://example.com/page.htm"
-
-
-@pytest.fixture
-def no_network(monkeypatch):
-    """Fail the test if fetch_cached tries to download."""
-
-    def fail(*args, **kwargs):
-        pytest.fail("network called on what should be a cache hit")
-
-    monkeypatch.setattr("fomc_rag.fetch.requests.get", fail)
 
 
 def test_fetch_cached_returns_cached_file(tmp_path, no_network):
