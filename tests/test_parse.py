@@ -44,6 +44,15 @@ CLASSIFY_CASES = [
         "Review of Monetary Policy Strategy, Tools, and Communications",
         "review_of_monetary_policy_strategy_tools_and_communications",
     ),
+    (
+        "Discussion of Financial Markets and Open Market Operations",
+        "financial_markets",
+    ),
+    ("Financial Developments and Open Market Operations", "financial_markets"),
+    (
+        "Participants' Views on Current Economic Conditions and the Economic Outlook",
+        "participants_views",
+    ),
 ]
 HEADING_CANDIDATE_CASES = [
     # heading after a leading <br>, body text in the same <p>
@@ -160,6 +169,9 @@ def test_is_date_line(text, expected):
         "case_insensitive",
         "routine_slug",
         "punctuation_slug",
+        "financial_markets_2021",
+        "financial_markets_2022",
+        "participants_views_2021",
     ],
 )
 def test_classify_heading(heading, expected):

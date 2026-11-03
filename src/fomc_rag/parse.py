@@ -14,10 +14,13 @@ MONTHS_ALTERNATION = "January|February|March|April|May|June|July|August|Septembe
 DATE_LINE_PATTERN = re.compile(rf"(?:{MONTHS_ALTERNATION}) \d{{1,2}}(?!\d)")
 CORE_SECTIONS = {
     "developments in financial markets and open market operations": "financial_markets",
+    "discussion of financial markets and open market operations": "financial_markets",
+    "financial developments and open market operations": "financial_markets",
     "staff review of the economic situation": "economic_situation",
     "staff review of the financial situation": "financial_situation",
     "staff economic outlook": "staff_outlook",
     "participants' views on current conditions and the economic outlook": "participants_views",
+    "participants' views on current economic conditions and the economic outlook": "participants_views",
     "committee policy action": "policy_action",  # 2019 spelling
     "committee policy actions": "policy_action",  # 2025 spelling
 }
