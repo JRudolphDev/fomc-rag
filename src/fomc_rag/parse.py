@@ -26,6 +26,7 @@ ROUTINE_SECTIONS = {
     "notation_vote",
     "attendance",
 }
+VOTE_LABEL_PREFIXES = ("Voting for", "Voting against", "Absent and not voting")
 
 
 def is_date_line(text: str) -> bool:
@@ -108,9 +109,11 @@ def heading_candidate(p: Tag) -> Tag | None:
 
 
 def reject_reason(p: Tag, text: str) -> str | None:
-    """Return why a heading candidate is rejected (vote label, date line, signature), else None."""
-    if text.endswith(":"):
+    """Return why a heading candidate is rejected (vote label, trailing colon, date line, signature), else None."""
+    if text.startswith(VOTE_LABEL_PREFIXES):
         return "vote label"
+    if text.endswith(":"):
+        return "trailing colon"
     if is_date_line(text):
         return "date line"
     if "text-align:center" in p.get("style", ""):

@@ -64,6 +64,17 @@ REJECT_REASON_CASES = [
         "signature",
     ),
     ("<p><strong>Staff Economic Outlook</strong><br/>The staff...</p>", None),
+    ("<p><strong>Voting for this action</strong>: Jerome H. Powell</p>", "vote label"),
+    (
+        "<p><strong>Voting against this action: None. </strong><br/>Consistent with...</p>",
+        "vote label",
+    ),
+    (
+        "<p><strong>Voting for this action</strong><strong>: </strong>Kevin Warsh</p>",
+        "vote label",
+    ),
+    ("<p><strong>Special Topic: The Standing Repo Facility</strong><br/>...</p>", None),
+    ("<p><strong>Votes on this action:</strong></p>", "trailing colon"),
 ]
 FOOTNOTE_CASES = [
     (
@@ -171,7 +182,17 @@ def test_heading_candidate(html, expected):
 @pytest.mark.parametrize(
     "html, expected",
     REJECT_REASON_CASES,
-    ids=["vote_label", "date_line", "signature", "valid_heading"],
+    ids=[
+        "vote_label",
+        "date_line",
+        "signature",
+        "valid_heading",
+        "colon_outside",
+        "colon_mid_text",
+        "split_strong",
+        "heading_with_colon",
+        "trailing_colon",
+    ],
 )
 def test_reject_reason(html, expected):
     p = BeautifulSoup(html, "html.parser").p
