@@ -27,12 +27,16 @@
   - Aug 27 2020 and Aug 22 2025: Statement on Longer-Run Goals.
 - **Emergency meetings, 2020:** Mar 3 and Mar 23 have statements but no minutes page. Mar 3 minutes sit at the end of the Mar 15 minutes.
 - **Known limitation:** Mar 3 2020 minutes are stored under Mar 15. A date filter for Mar 3 misses them.
+- **Known limitation:** Minutes table content (officer roster, swap line amounts) is not parsed. Questions about those facts will miss, and the sentence that introduces a table ("the following officers... were selected:") is kept without it. See Decisions: Minutes text.
 - **Two year page layouts:**
   - Historical pages (2019, 2020): link text "Statement".
   - Calendar page (2021 on): a `<strong>Statement:</strong>` label, then "PDF" and "HTML" links.
 - **Statement titles:** `<title>` is "Federal Reserve Board - Federal Reserve issues FOMC statement". Note the prefix.
+- **Lookalike characters:** Statement text contains U+2011 (non-breaking hyphen), which looks like `-` but is a different character. A test or keyword search for `longer-run` typed with `-` will miss it. Normalizing is decided at chunking.
 - **Page scope:** Parse only inside `<div id="article">`. Site navigation is full of `<strong>` tags.
-- **Statements:** No headings. About four `<p>`: conditions, decision, guidance, vote.
+- **Statements:** No headings. Usually four to seven `<p>`: conditions, decision, guidance, vote; a few have more.
+- **Minutes footnotes:** The footnote text sits in `<p>` tags at the end of the article. Each starts with an `<a name="fnN">` anchor and ends "Return to text" (6 in 2019, 8 in 2025). The markers that point to them (`<a href="#fnN"><sup>N</sup></a>`) appear in headings and mid-sentence in body text (`Cavallo,2 and`).
+- **Minutes tables:** A few facts sit in `<table>` tags with no `<p>` inside: the officer roster (2019, 2025) and swap line amounts (2019). All are in Annual Organizational Matters, so January minutes only. About 550 to 700 characters per page.
 - **Minutes headings:** A `<strong>` at the start of a `<p>`, then `<br />`, then the first paragraph in the same `<p>`:
 
   ```html
@@ -40,22 +44,46 @@
   Investor risk sentiment fluctuated materially...</p>
   ```
 
-- **Core minutes sections (stable 2019 to 2025):**
-  1. Developments in Financial Markets and Open Market Operations
+- **Core minutes sections (all six in every minutes page, 2019 to 2026; checked on all 62):**
+  1. Developments in Financial Markets and Open Market Operations (also "Discussion of Financial Markets and Open Market Operations", 2021-11-03; "Financial Developments and Open Market Operations", 2022-01-26)
   2. Staff Review of the Economic Situation
   3. Staff Review of the Financial Situation
   4. Staff Economic Outlook
-  5. Participants' Views on Current Conditions and the Economic Outlook
+  5. Participants' Views on Current Conditions and the Economic Outlook ("...on Current Economic Conditions and...", 2021-06-16 to 2021-12-15)
   6. Committee Policy Action(s) (singular in 2019, plural in 2025)
 - **Heading traps:**
   - Heading and body share one `<p>`.
   - `<strong>` also marks vote labels, the date line and the signature.
-  - One-off sections appear (Annual Organizational Matters, Attendance).
+  - Vote label markup varies, 2019 to 2026: colon inside the `<strong>` (`<strong>Voting for this action:</strong>`, 2019); outside it (`<strong>Voting for this action</strong>:`, 2021-12-15); mid-text with a `<br />` after, so it looks exactly like a heading (`<strong>Voting against this action: None. </strong><br />`, 2024-11-07); split across two tags (`<strong>Voting for this action</strong><strong>: </strong>`, 2026-06-17).
+  - Non-core sections appear: routine (Annual Organizational Matters, Notation Vote, Attendance) and true one-offs (Long-Run Monetary Policy Implementation Frameworks in 2019; Review of Monetary Policy Strategy, Tools, and Communications in 2025).
+  - Footnote markers sit inside the heading in 2025 (`<strong>Annual Organizational Matters<a href="#fn2"><sup>2</sup></a></strong>`) but after it in 2019 (`<strong>Annual Organizational Matters</strong><a href="#fn4"><sup>4</sup></a><a name="f4"></a><br />`).
+  - Date line dashes vary: `January 29-30, 2019` (hyphen) vs `January 28–29, 2025` (en dash).
   - Whitespace variants (`<p><br />` before a heading, empty `<strong> </strong>`).
 - **Heading rule:**
-  1. **Find:** a `<strong>` that is the first content of a `<p>` (ignoring whitespace and a leading `<br />`), followed by `<br />`.
-  2. **Reject:** text ending in `:` (vote labels); text that is a date (date line); a `<p>` with `text-align:center` (signature).
-  3. **Classify:** match a core section case-insensitively (Action = Actions) and store its key: `financial_markets`, `economic_situation`, `financial_situation`, `staff_outlook`, `participants_views`, `policy_action`. Otherwise store a slug of the heading (e.g. `annual_organizational_matters`) and log it.
+  0. **Clean once:** before the loop, remove every `<sup>` in the article. Footnote numbers then leak into neither heading text (2025 `..._2` keys) nor body text (`Cavallo, 2`). Use the markup, not a guess from the text.
+  1. **Find:** a `<strong>` that is the first child of a `<p>`, skipping whitespace and `<br />`. Nothing is required after it. An earlier draft also required a following `<br />`; dropped, because in 2019 a footnote marker sits between the `</strong>` and the `<br />` (see Heading traps) and would false-reject Annual Organizational Matters.
+  2. **Reject:**
+     - Vote label: text starts with `Voting for`, `Voting against` or `Absent and not voting` (case-sensitive). The wording has not changed 2019 to 2026 (63, 61 and 1 occurrences, no case variants), while the markup has (see Heading traps). Rejected: "contains `:`", which would drop the real heading "Special Topic: The Standing Repo Facility" (2025-10-29). A case change would be a false accept, which WARNs.
+     - Trailing colon: text ending in `:`. A backstop for a label not yet seen, logged under its own reason so it stands out at DEBUG.
+     - Date line: a month name, a space, 1 or 2 digits, not followed by another digit. Matches `January 29-30` and `March 15,` whatever the dash; keeps a heading like `March 2020 Actions`.
+     - A `<p>` with `text-align:center` (signature block).
+     - A rejected candidate is not a heading, but its `<p>` is kept as body text in the current section: vote labels and names stay with the policy decision, the date line in the preamble, the signature in the last section.
+  3. **Classify:** look up the lowercased heading in a dict of core sections and store its key: `financial_markets`, `economic_situation`, `financial_situation`, `staff_outlook`, `participants_views`, `policy_action`. Otherwise store a slug of the heading: lowercase, each run of non-alphanumeric characters becomes `_` (e.g. `annual_organizational_matters`).
+     - **Known variants are data:** each wording is its own dict entry: 10 entries for 6 keys (Action and Actions; the 2021 and 2022 rewordings above). No general rule (such as stripping a trailing `s`) that would touch every heading. Exact text taken from the pages, printed with `repr` (straight apostrophe).
+     - **Unseen variants rely on the WARNING:** a variant not in the dict (for example a curly apostrophe in "Participants' Views") falls through to a slug and raises the unknown-section WARNING. That is the signal to add an entry. No blanket normalization for a problem not yet seen.
+- **Heading logging:** both directions, so a misclassification either way is visible.
+
+  | Case | Level |
+  |---|---|
+  | Expected reject (vote label, trailing colon, date line, signature), with its text | DEBUG |
+  | Per-document summary: section count, non-core names, reject count | INFO |
+  | Known non-core heading (`KNOWN_NON_CORE`) | summary only |
+  | Unknown non-core heading | WARNING |
+
+  - **Known non-core headings (`KNOWN_NON_CORE`, 35 keys):** the 3 routine keys (`annual_organizational_matters`, `notation_vote`, `attendance`) plus the 32 one-offs and variants reviewed on the first full run (routine variants such as `notation_votes`; strategy reviews; balance sheet and repo topics; special topics).
+  - **Changed from the first plan:** one-offs were to stay off the list and be added only if they recurred. The first full run then gave about 49 WARNINGs from 32 real, reviewed sections, repeated on every run. A log that always warns gets ignored, so a new false heading would be missed. Now a WARNING means a heading nobody has reviewed yet.
+  - A false reject (a real heading dropped) shows at DEBUG; a false accept (junk kept as a section) shows as a WARNING.
+  - Tradeoff: the set needs upkeep and grows with each new section. Each key is added once, after its warning is reviewed. `test_parse_minutes` asserts the fixtures log no WARNING.
 
 ## 3. Pipeline
 
@@ -117,6 +145,39 @@ Each decision is made when its build step arrives.
 - **Why:** YAGNI. Statements are released on the meeting date. Minutes release dates appear only on year pages, so capturing them changes `extract_links` and `Meeting`. "Last Update" is an update date, not a release date. Adding it later is metadata only: no change to chunk text, embeddings or IDs, just an index rebuild from the cache.
 - **Revisit if:** Test questions need "what was public as of date X", or citations should show release dates.
 
+### Statement text
+
+- **Choice:** Keep every class-less, non-empty `<p>` inside `div#article`. Drop a `<p>` whose only content is a link to an Implementation Note (`...a1.htm`), and a `<p>` starting "For media inquiries". Keep everything else, including the vote and anything after it. Join paragraphs with a blank line. Raise `ValueError` if nothing is kept. Log both drops at DEBUG.
+- **Alternatives:** Keep only paragraphs up to the vote; match boilerplate by text for both drops.
+- **Why:** Surveyed all 64 statements. Header lines (date, release time) always carry a class; body paragraphs never do. The Implementation Note is detected by structure (a lone link to `a1.htm`), so a real sentence that mentions it is kept. The media line has no structural signal, so a text prefix is the only option. Stopping at the vote would drop real content in 3 statements and breaks on 4 that word the vote differently. A blank-line join keeps paragraph boundaries so chunking can still split on them.
+- **Revisit if:** A new boilerplate line shows up in statement text, or the DEBUG log shows a real paragraph dropped.
+
+### Minutes text
+
+- **Choice:** One `Section` per accepted heading (see Heading rule), plus a `preamble` section for the text before the first heading.
+  - **Preamble:** key `preamble`, heading taken from the page `<h3>` ("Minutes of the Federal Open Market Committee").
+  - **Heading and body:** read the heading text from the `<strong>`, then `decompose()` it, so the rest of that `<p>` becomes the section's first paragraph.
+  - **Group then build:** the loop collects raw `(key, heading, paragraphs)` groups with no empty check. One step after the loop joins each group with a blank line into a `Section` and skips empty groups. Raise `ValueError` if no section has text.
+  - **Footnotes dropped:** a `<p>` that starts with an `<a name="fnN">` anchor is skipped and logged at DEBUG (see Data quirks: Minutes footnotes).
+  - **Signature kept:** the centered signature lines stay at the end of the last section.
+  - **Tables not parsed:** only `<p>` text is kept (see Data quirks: Minutes tables).
+- **Alternatives:** Name the opening section `attendance`; build each `Section` at flush time, with the empty check in two places; keep footnotes in the last section; drop the signature with a new rule; parse tables with `get_text`.
+- **Why:**
+  - `preamble` names the position, not the content. In 2019 the opening is about 40 `<p>` of attendees; in 2025 it is one sentence, with a separate Attendance section. `preamble` is true every year.
+  - Heading and body share one `<p>` (see Heading traps). Reading then removing the `<strong>` splits them without losing the first paragraph.
+  - Group then build keeps the empty check and `Section` construction in one place: no helper, no two copies to drift.
+  - Footnotes landed in the last section (Notation Vote or Attendance), so a chunk would cite them under the wrong section. The anchor is structure, so no text match is needed.
+  - The signature is a few words (name, "Secretary") with no wrong-section risk worth a new rule.
+  - Tables hold administrative facts only (officer roster, swap line amounts), about 550 to 700 characters in roughly 8 of 62 pages. `get_text` flattens rows and columns into hard-to-read text. The focus is monetary policy; tables can be added later if a test question needs them.
+- **Revisit if:** A test question needs officer or swap line facts; the WARNING log shows a heading variant; the DEBUG log shows a real paragraph dropped as a footnote.
+
+### IDs
+
+- **Choice:** `doc_id` is `{doc_type}-{meeting_date}`. `chunk_id` is `{doc_id}-{position}`, zero-padded (`minutes-2022-06-15-014`).
+- **Alternatives:** Section name in the chunk ID (`minutes-2022-06-15-participants-views-03`).
+- **Why:** `doc_id` is unique because discovery yields one statement and at most one minutes page per date. Keeping labels out of `chunk_id` removes one class of breakage: renaming a section key or fixing the heading classifier would otherwise change IDs for identical text and break the test set. The `section` field still carries the section.
+- **Revisit if:** Two documents of the same type ever share a meeting date.
+
 ### Raw data and fixtures
 
 - **Choice:** Raw HTML cache in `data/raw/`, gitignored. A few pages committed in `tests/fixtures/`.
@@ -134,6 +195,16 @@ Each decision is made when its build step arrives.
   - The cache check is `exists()`, which is true for a half-written file. The atomic rename means the real path only ever holds complete files.
   - Raw bytes keep the original. `utf-8-sig` strips the BOM the Fed serves.
 - **Revisit if:** A published page gets corrected, or more living pages appear.
+
+### Ingest orchestration
+
+- **Choice:** `ingest.py` runs discovery, then fetches and parses each meeting's statement and, when `minutes_url` is not `None`, its minutes. It stops on the first error, holds all Documents in memory, and raises if two Documents share a `doc_id`.
+- **Alternatives:** Log and skip a failing meeting; write each Document to disk as it is parsed; rely on the models to catch duplicates.
+- **Why:**
+  - Every error raised here means the parser met markup it does not understand. Skipping would build a corpus with a meeting missing, and the later steps would run over the gap. Stopping does not depend on anyone reading the log, and a rerun from cache takes 6.1s.
+  - About 127 Documents fit in memory: 6.1s from cache, 74.9s with downloads. Writing to disk would add a file format and a load step with no benefit yet.
+  - Pydantic validates one object at a time, so it cannot see a duplicate across Documents. `chunk_id` is built from `doc_id`, so a duplicate would silently overwrite the first Document's chunks in the store.
+- **Revisit if:** The corpus or run time grows enough that a rerun is expensive, runs become unattended, or failures that are not parser bugs (network errors) become common. Then log and skip, and report every failure at the end.
 
 ### Vector store
 
@@ -159,11 +230,11 @@ Each decision is made when its build step arrives.
 
 | Field | Example | Purpose |
 |---|---|---|
-| `chunk_id` | `minutes-2022-06-15-participants-views-03` | Citation key, readable by eye |
+| `chunk_id` | `minutes-2022-06-15-014` | Citation key: `doc_id` plus zero-padded position in the document |
 | `doc_id` | `minutes-2022-06-15` | Source document |
 | `doc_type` | `statement` / `minutes` | Filtering |
 | `meeting_date` | `2022-06-15` | Links statement to minutes; date filtering |
-| `section` | `participants_views` | Section filtering; null for statements |
+| `section` | `participants_views` | Section filtering. Statements use `statement`: never null, so no null handling in the store, and no invented paragraph labels. |
 | `url` | Fed page URL | One step from citation to source |
 | `text` | chunk text | Embedded and shown to the model |
 
