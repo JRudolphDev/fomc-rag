@@ -16,8 +16,6 @@ from fomc_rag.parse import (
     reject_reason,
 )
 
-logger = logging.getLogger(__name__)
-
 FIXTURES = Path(__file__).parent / "fixtures"
 IMPLEMENTATION_NOTE_CASES = [
     ("<p>No links here.</p>", False),
