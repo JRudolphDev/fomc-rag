@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from fomc_rag.parse import (
     parse_statement,
     reject_reason,
 )
+
+logger = logging.getLogger(__name__)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 IMPLEMENTATION_NOTE_CASES = [
@@ -228,7 +231,7 @@ def test_is_footnote(html, expected):
     ids=["2019", "2025"],
 )
 def test_parse_minutes(
-    filename, meeting_date, expected_id, expected_keys, leaked_marker
+    filename, meeting_date, expected_id, expected_keys, leaked_marker, caplog
 ):
     html = (FIXTURES / filename).read_text(encoding="utf-8-sig")
     url = f"https://www.federalreserve.gov/monetarypolicy/{filename}"
@@ -246,6 +249,7 @@ def test_parse_minutes(
     assert "Return to text" not in all_text  # footnotes dropped
     assert not any(h.endswith(":") for h in headings)  # vote labels rejected
     assert leaked_marker not in all_text  # footnote digits stripped from body text
+    assert not any(r.levelno >= logging.WARNING for r in caplog.records)
 
 
 def test_parse_statement():

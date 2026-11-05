@@ -24,10 +24,47 @@ CORE_SECTIONS = {
     "committee policy action": "policy_action",  # 2019 spelling
     "committee policy actions": "policy_action",  # 2025 spelling
 }
-ROUTINE_SECTIONS = {
+KNOWN_NON_CORE = {
+    # routine and meeting logistics
     "annual_organizational_matters",
+    "organizational_matters",
+    "selection_of_committee_officer",
     "notation_vote",
+    "notation_votes",
     "attendance",
+    "opening_remarks",
+    "videoconference_meeting_of_march_2",  # Mar 3 2020 minutes inside Mar 15
+    "videoconference_meeting_of_october_4_2019",
+    # policy framework and communications
+    "long_run_monetary_policy_implementation_frameworks",
+    "review_of_monetary_policy_strategy_tools_and_communication_practices",  # 2019-20
+    "review_of_monetary_policy_strategy_tools_and_communications",  # 2025
+    "update_from_subcommittee_on_communications",
+    "discussion_of_forward_guidance_asset_purchases_and_yield_curve_caps_or_targets",
+    "discussion_on_recommended_changes_to_the_summary_of_economic_projections",
+    "action_to_adopt_changes_to_the_committee_s_rules_regarding_availability_of_information",
+    "committee_ethics_discussion",
+    # balance sheet and asset purchases
+    "balance_sheet_normalization",
+    "reinvestment_plans",
+    "discussion_on_asset_purchases",
+    "discussion_of_asset_purchases",
+    "discussion_of_policy_normalization_considerations",
+    "principles_for_reducing_the_size_of_the_balance_sheet",
+    "plans_for_reducing_the_size_of_the_balance_sheet",
+    "considerations_for_slowing_the_pace_of_balance_sheet_reduction",
+    "special_topic_balance_sheet_issues",
+    # money markets and repo
+    "participants_discussion_of_recent_money_market_developments",
+    "review_of_options_for_repo_operations_to_support_control_of_the_federal_funds_rate",
+    "standing_repurchase_facility",
+    "discussion_of_repurchase_agreement_arrangements",
+    "establishment_of_standing_repurchase_agreement_facilities",
+    "standing_repurchase_agreement_facility_resolution",
+    "standing_fima_repurchase_agreement_resolution",
+    "special_topic_the_standing_repo_facility",
+    # financial stability
+    "recent_developments_in_the_banking_sector",
 }
 VOTE_LABEL_PREFIXES = ("Voting for", "Voting against", "Absent and not voting")
 
@@ -169,7 +206,7 @@ def parse_minutes(html: str, meeting_date: date, url: str) -> Document:
         s.key for s in sections if s.key not in core_keys and s.key != "preamble"
     ]
     for key in non_core:
-        if key not in ROUTINE_SECTIONS:
+        if key not in KNOWN_NON_CORE:
             logger.warning("Unknown non-core section in %s: %s", url, key)
     doc_id = f"minutes-{meeting_date.isoformat()}"
     logger.info(
