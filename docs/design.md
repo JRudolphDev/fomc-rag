@@ -44,16 +44,17 @@
   Investor risk sentiment fluctuated materially...</p>
   ```
 
-- **Core minutes sections (stable 2019 to 2025):**
-  1. Developments in Financial Markets and Open Market Operations
+- **Core minutes sections (all six in every minutes page, 2019 to 2026; checked on all 62):**
+  1. Developments in Financial Markets and Open Market Operations (also "Discussion of Financial Markets and Open Market Operations", 2021-11-03; "Financial Developments and Open Market Operations", 2022-01-26)
   2. Staff Review of the Economic Situation
   3. Staff Review of the Financial Situation
   4. Staff Economic Outlook
-  5. Participants' Views on Current Conditions and the Economic Outlook
+  5. Participants' Views on Current Conditions and the Economic Outlook ("...on Current Economic Conditions and...", 2021-06-16 to 2021-12-15)
   6. Committee Policy Action(s) (singular in 2019, plural in 2025)
 - **Heading traps:**
   - Heading and body share one `<p>`.
   - `<strong>` also marks vote labels, the date line and the signature.
+  - Vote label markup varies, 2019 to 2026: colon inside the `<strong>` (`<strong>Voting for this action:</strong>`, 2019); outside it (`<strong>Voting for this action</strong>:`, 2021-12-15); mid-text with a `<br />` after, so it looks exactly like a heading (`<strong>Voting against this action: None. </strong><br />`, 2024-11-07); split across two tags (`<strong>Voting for this action</strong><strong>: </strong>`, 2026-06-17).
   - Non-core sections appear: routine (Annual Organizational Matters, Notation Vote, Attendance) and true one-offs (Long-Run Monetary Policy Implementation Frameworks in 2019; Review of Monetary Policy Strategy, Tools, and Communications in 2025).
   - Footnote markers sit inside the heading in 2025 (`<strong>Annual Organizational Matters<a href="#fn2"><sup>2</sup></a></strong>`) but after it in 2019 (`<strong>Annual Organizational Matters</strong><a href="#fn4"><sup>4</sup></a><a name="f4"></a><br />`).
   - Date line dashes vary: `January 29-30, 2019` (hyphen) vs `January 28–29, 2025` (en dash).
@@ -62,26 +63,27 @@
   0. **Clean once:** before the loop, remove every `<sup>` in the article. Footnote numbers then leak into neither heading text (2025 `..._2` keys) nor body text (`Cavallo, 2`). Use the markup, not a guess from the text.
   1. **Find:** a `<strong>` that is the first child of a `<p>`, skipping whitespace and `<br />`. Nothing is required after it. An earlier draft also required a following `<br />`; dropped, because in 2019 a footnote marker sits between the `</strong>` and the `<br />` (see Heading traps) and would false-reject Annual Organizational Matters.
   2. **Reject:**
-     - Text ending in `:` (vote labels).
+     - Vote label: text starts with `Voting for`, `Voting against` or `Absent and not voting` (case-sensitive). The wording has not changed 2019 to 2026 (63, 61 and 1 occurrences, no case variants), while the markup has (see Heading traps). Rejected: "contains `:`", which would drop the real heading "Special Topic: The Standing Repo Facility" (2025-10-29). A case change would be a false accept, which WARNs.
+     - Trailing colon: text ending in `:`. A backstop for a label not yet seen, logged under its own reason so it stands out at DEBUG.
      - Date line: a month name, a space, 1 or 2 digits, not followed by another digit. Matches `January 29-30` and `March 15,` whatever the dash; keeps a heading like `March 2020 Actions`.
      - A `<p>` with `text-align:center` (signature block).
      - A rejected candidate is not a heading, but its `<p>` is kept as body text in the current section: vote labels and names stay with the policy decision, the date line in the preamble, the signature in the last section.
   3. **Classify:** look up the lowercased heading in a dict of core sections and store its key: `financial_markets`, `economic_situation`, `financial_situation`, `staff_outlook`, `participants_views`, `policy_action`. Otherwise store a slug of the heading: lowercase, each run of non-alphanumeric characters becomes `_` (e.g. `annual_organizational_matters`).
-     - **Known variants are data:** "Committee Policy Action" (2019) and "Committee Policy Actions" (2025) are two dict entries for one key. No general rule (such as stripping a trailing `s`) that would touch every heading.
+     - **Known variants are data:** each wording is its own dict entry: 10 entries for 6 keys (Action and Actions; the 2021 and 2022 rewordings above). No general rule (such as stripping a trailing `s`) that would touch every heading. Exact text taken from the pages, printed with `repr` (straight apostrophe).
      - **Unseen variants rely on the WARNING:** a variant not in the dict (for example a curly apostrophe in "Participants' Views") falls through to a slug and raises the unknown-section WARNING. That is the signal to add an entry. No blanket normalization for a problem not yet seen.
 - **Heading logging:** both directions, so a misclassification either way is visible.
 
   | Case | Level |
   |---|---|
-  | Expected reject (date line, vote label, signature), with its text | DEBUG |
+  | Expected reject (vote label, trailing colon, date line, signature), with its text | DEBUG |
   | Per-document summary: section count, non-core names, reject count | INFO |
-  | Known routine non-core heading | summary only |
+  | Known non-core heading (`KNOWN_NON_CORE`) | summary only |
   | Unknown non-core heading | WARNING |
 
-  - **Known routine headings (allowlist):** `annual_organizational_matters`, `notation_vote`, `attendance`.
-  - True one-offs are left off the list on purpose: they warn once, get reviewed, and are added only if they recur.
+  - **Known non-core headings (`KNOWN_NON_CORE`, 35 keys):** the 3 routine keys (`annual_organizational_matters`, `notation_vote`, `attendance`) plus the 32 one-offs and variants reviewed on the first full run (routine variants such as `notation_votes`; strategy reviews; balance sheet and repo topics; special topics).
+  - **Changed from the first plan:** one-offs were to stay off the list and be added only if they recurred. The first full run then gave about 49 WARNINGs from 32 real, reviewed sections, repeated on every run. A log that always warns gets ignored, so a new false heading would be missed. Now a WARNING means a heading nobody has reviewed yet.
   - A false reject (a real heading dropped) shows at DEBUG; a false accept (junk kept as a section) shows as a WARNING.
-  - Tradeoff: the allowlist needs upkeep. Each new routine heading is added once, after its warning is reviewed.
+  - Tradeoff: the set needs upkeep and grows with each new section. Each key is added once, after its warning is reviewed. `test_parse_minutes` asserts the fixtures log no WARNING.
 
 ## 3. Pipeline
 
@@ -193,6 +195,16 @@ Each decision is made when its build step arrives.
   - The cache check is `exists()`, which is true for a half-written file. The atomic rename means the real path only ever holds complete files.
   - Raw bytes keep the original. `utf-8-sig` strips the BOM the Fed serves.
 - **Revisit if:** A published page gets corrected, or more living pages appear.
+
+### Ingest orchestration
+
+- **Choice:** `ingest.py` runs discovery, then fetches and parses each meeting's statement and, when `minutes_url` is not `None`, its minutes. It stops on the first error, holds all Documents in memory, and raises if two Documents share a `doc_id`.
+- **Alternatives:** Log and skip a failing meeting; write each Document to disk as it is parsed; rely on the models to catch duplicates.
+- **Why:**
+  - Every error raised here means the parser met markup it does not understand. Skipping would build a corpus with a meeting missing, and the later steps would run over the gap. Stopping does not depend on anyone reading the log, and a rerun from cache takes 6.1s.
+  - About 127 Documents fit in memory: 6.1s from cache, 74.9s with downloads. Writing to disk would add a file format and a load step with no benefit yet.
+  - Pydantic validates one object at a time, so it cannot see a duplicate across Documents. `chunk_id` is built from `doc_id`, so a duplicate would silently overwrite the first Document's chunks in the store.
+- **Revisit if:** The corpus or run time grows enough that a rerun is expensive, runs become unattended, or failures that are not parser bugs (network errors) become common. Then log and skip, and report every failure at the end.
 
 ### Vector store
 
