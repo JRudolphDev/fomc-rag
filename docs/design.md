@@ -13,7 +13,7 @@
 
 ## 2. Corpus
 
-- **Source:** https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm
+- **Source:** <https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm>
 - **Date range:** 2019 onward. Covers the 2019 cuts, the 2020 response, the 2022 hikes, later cuts and the change in Fed Chair. Older years add near-duplicate language and layout drift. Start year is a parameter.
 - **Format:** HTML. Tags keep paragraphs and headings; PDF extraction loses them.
 - **Discovered (Oct 2026):** 64 meetings. 2 have no minutes page (Mar 3 and Mar 23 2020).
@@ -74,7 +74,7 @@
 - **Heading logging:** both directions, so a misclassification either way is visible.
 
   | Case | Level |
-  |---|---|
+  | --- | --- |
   | Expected reject (vote label, trailing colon, date line, signature), with its text | DEBUG |
   | Per-document summary: section count, non-core names, reject count | INFO |
   | Known non-core heading (`KNOWN_NON_CORE`) | summary only |
@@ -90,7 +90,7 @@
 Indexing (once): Ingest, Chunk, Embed, Store. Query (per question): Retrieve, Generate. Evaluate checks both.
 
 | Stage | In | Out |
-|---|---|---|
+| --- | --- | --- |
 | Ingest | meeting URLs | document records: IDs, date, type, URL, sectioned text. Raw HTML cached. |
 | Chunk | document records | chunks: text plus section 5 metadata |
 | Embed | chunk texts | one vector per chunk (Voyage, `input_type="document"`) |
@@ -229,7 +229,7 @@ Each decision is made when its build step arrives.
 ## 5. Chunk schema (draft)
 
 | Field | Example | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `chunk_id` | `minutes-2022-06-15-014` | Citation key: `doc_id` plus zero-padded position in the document |
 | `doc_id` | `minutes-2022-06-15` | Source document |
 | `doc_type` | `statement` / `minutes` | Filtering |
@@ -256,7 +256,7 @@ Each decision is made when its build step arrives.
 ## 8. Failure modes
 
 | Failure | What happens | Guard |
-|---|---|---|
+| --- | --- | --- |
 | Bad chunk boundaries | A fact split across chunks retrieves poorly | Section-aware chunking and the heading rule |
 | Paraphrase misses | Question wording differs from the document | Paraphrase test category; hybrid BM25 is the stretch fix |
 | Citation hallucination | A cited chunk doesn't support the claim | Readable IDs; citation checks in Evaluate |

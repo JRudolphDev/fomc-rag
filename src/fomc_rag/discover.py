@@ -39,7 +39,7 @@ def extract_links(html: str) -> tuple[set[str], set[str]]:
 
 
 def is_fomc_statement(html: str) -> bool:
-    """TODO"""
+    """True if the page's <title> ends with the FOMC statement phrase; False if it has no <title>."""
     soup = BeautifulSoup(html, "html.parser")
     title = soup.title
     if title is None:
