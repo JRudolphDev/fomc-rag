@@ -28,6 +28,9 @@
 - **Emergency meetings, 2020:** Mar 3 and Mar 23 have statements but no minutes page. Mar 3 minutes sit at the end of the Mar 15 minutes.
 - **Known limitation:** Mar 3 2020 minutes are stored under Mar 15. A date filter for Mar 3 misses them.
 - **Known limitation:** Minutes table content (officer roster, swap line amounts) is not parsed. Questions about those facts will miss, and the sentence that introduces a table ("the following officers... were selected:") is kept without it. See Decisions: Minutes text.
+- **Minutes do not name speakers:** views are given to "participants" or "several members", never to a named person. Dissents are the exception: the vote line names them, in both the statement and `policy_action`.
+- **Preamble content:** 40 minutes have an Attendance heading, and their preamble is only the date line (~70 tokens). In the other 22, the attendance list follows the date line in the preamble.
+- **Known limitation:** The Jun 10 2020 preamble ends with an unheaded statement by the Chair, apparently on diversity and inclusion. It is not indexed with the rest of the preamble. See Decisions: Chunking.
 - **Two year page layouts:**
   - Historical pages (2019, 2020): link text "Statement".
   - Calendar page (2021 on): a `<strong>Statement:</strong>` label, then "PDF" and "HTML" links.
@@ -214,11 +217,38 @@ Each decision is made when its build step arrives.
 
 ### Chunking
 
-- **Decide when:** Before any chunking code. Written defense required.
-- **Options:** Fixed-size with overlap, recursive sentence-aware, section-aware, semantic.
-- **Evidence so far:** The six core minutes sections map to the question types in section 1. Statements are short and have no sections.
-- **Open questions:** Split statements at all? Section or paragraph chunks for minutes?
-- **Choice:** TODO
+- **Choice:**
+  - **Statements:** one chunk per statement.
+  - **Minutes:** pack consecutive paragraphs within one section, up to a target of ~500 tokens. A chunk never crosses a section boundary. Greedy: add the next paragraph if the chunk stays under the target, else start a new chunk.
+  - **Size measure:** `len(text)`, at ~4 chars per token (target ~2,000 chars). No tokenizer dependency.
+  - **Oversized paragraph:** a paragraph over the target on its own becomes its own chunk. Never split inside a paragraph.
+  - **Limits:** WARNING for a chunk over ~1,000 tokens, and continue. ERROR at the embedding model's input limit, checked at the embed step with truncation off.
+  - **Overlap:** none.
+  - **Context prefix:** added to the embedded text only, never to the stored text. Statements: `f"FOMC statement, {d:%B} {d.day}, {d.year}"`. Minutes: `f"FOMC minutes, {d:%B} {d.day}, {d.year}, {section.heading}"`, where `d` is `meeting_date`.
+  - **Not indexed:** `NOT_INDEXED` lists sections left out: `preamble`, `attendance`, `annual_organizational_matters`, `organizational_matters`, `selection_of_committee_officer`, `notation_vote`, `notation_votes`. Every other section, core or special topic, is chunked by the same rule.
+- **Alternatives:** Whole sections as chunks; single paragraphs as chunks; fixed-size chunks with overlap; splitting oversized paragraphs at a sentence boundary; a model-written context sentence per chunk; a list of sections to index instead of sections to skip.
+- **Why:**
+  - **Statements whole:** a statement is short and tightly argued (median ~575 tokens, max ~1,150). Questions use the decision, the reasoning and the vote together.
+  - **Not whole sections:** minutes sections are long (`participants_views` median ~3,700 tokens). One vector averages many topics (inflation, labor, risks, policy), so a specific question scores it weakly.
+  - **Not single paragraphs:** core paragraphs are ~150 to 250 tokens and often lean on the paragraph before ("These risks..."). Alone they lose their subject, and top-k returns thin evidence.
+  - **~500 tokens:** 2 to 3 core paragraphs, so neighbours stay together without mixing many topics. `participants_views` becomes ~6 chunks. A starting point, set by experiment (see Revisit if).
+  - **Section boundary:** sections are the topic structure of the minutes and map to the question types in section 1.
+  - **`len(text)`:** the target is soft and tuned by comparing sizes, so an approximation is enough. The hard limit is checked by the model's own tokenizer at the embed step.
+  - **Oversized paragraph whole:** splitting a paragraph gives each half its own vector, and the second half loses the subject the first set up. The largest paragraph today is ~800 tokens, under the WARNING.
+  - **Two limits:** an oversized chunk is valid but unusual, so warn and continue. A chunk over the model limit would be silently truncated, which corrupts its vector, so stop (the same rule as ingest).
+  - **No overlap:** chunks end at paragraph boundaries, so nothing is cut mid-argument. Overlap duplicates text, and duplicates crowd out other evidence in top-k. The prefix is a cheaper fix for missing context.
+  - **Prefix, from metadata:** chunk text rarely names its own date, document type or section, but questions do ("What did participants say in November 2024?"). The prefix puts those words in the vector. The month is spelled out because questions use month names, not ISO dates. A template is free, deterministic and testable, and every field is already on `Document` and `Section`.
+  - **Prefix not stored:** the generator quotes and cites stored text. A citation must point at the Fed's own words, not a label we wrote. Date and section reach the generator as metadata fields instead.
+  - **Not indexed:** these sections are about 118k tokens (~240 chunks) of names, elections and routine votes. They compete for top-k slots, and a question that names a person matches an attendance list best while it holds no answer. The preamble's date line adds nothing the prefix does not.
+  - **Skip list, not an index list:** a new special topic is indexed by default (and already logs a WARNING). An index list would drop it silently.
+- **Hybrid stretch notes:**
+  - One `normalize()` applied to stored text in parse and to every query: U+2011 (198 uses in 77 documents, such as in "12-month") and U+2013 to `-`. BM25 matches exact tokens and misses these; embeddings mostly do not care. NFKC is not enough: it maps U+2011 to U+2010.
+  - `search` returns `chunk_id` and score per hit, so BM25 and vector results can be fused on `chunk_id`.
+  - Check the reranker input limit. Chunks are ~1,000 tokens at most.
+- **Revisit if:**
+  - **Target size:** rebuild at 250, 500 and 1,000 tokens, changing nothing else. Run the test set and keep the size with the most answers that are correct and properly cited. Record the numbers here.
+  - The experiment shows misses whose context sat in the neighbouring chunk: try overlap or a model-written context sentence.
+  - A test question needs attendance, officer elections or the standing authorizations: index those sections.
 
 ### Top-k
 
@@ -236,7 +266,9 @@ Each decision is made when its build step arrives.
 | `meeting_date` | `2022-06-15` | Links statement to minutes; date filtering |
 | `section` | `participants_views` | Section filtering. Statements use `statement`: never null, so no null handling in the store, and no invented paragraph labels. |
 | `url` | Fed page URL | One step from citation to source |
-| `text` | chunk text | Embedded and shown to the model |
+| `text` | chunk text | Shown to the model and cited. Body only, exactly as parsed. |
+
+The embedded text is the context prefix plus `text`. It is built at the embed step and not stored (see Decisions: Chunking).
 
 ## 6. Grounding contract
 
