@@ -67,3 +67,11 @@ def chunk_document(doc: Document, target_chars: int = TARGET_CHARS) -> list[Chun
                 )
             )
     return chunks
+
+
+def context_prefix(chunk: Chunk) -> str:
+    """Return the label added to a chunk's embedded text only: document type and spelled-out date, plus the section heading for minutes."""
+    d = chunk.meeting_date
+    if chunk.doc_type == "statement":
+        return f"FOMC statement, {d:%B} {d.day}, {d.year}"
+    return f"FOMC minutes, {d:%B} {d.day}, {d.year}, {chunk.heading}"

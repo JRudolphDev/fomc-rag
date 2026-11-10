@@ -3,8 +3,8 @@ from datetime import date
 
 import pytest
 
-from fomc_rag.chunk import WARN_CHARS, chunk_document, pack_paragraphs
-from fomc_rag.models import Document, Section
+from fomc_rag.chunk import WARN_CHARS, chunk_document, context_prefix, pack_paragraphs
+from fomc_rag.models import Chunk, Document, Section
 
 TARGET = 10
 PACK_CASES = [
@@ -15,6 +15,19 @@ PACK_CASES = [
     (["aa", "bb", "cc"], ["aa\n\nbb\n\ncc"]),
     (["aaaaaaaaaaaa", "bb"], ["aaaaaaaaaaaa", "bb"]),
     (["aa", "bbbbbbbbbbbb", "cc"], ["aa", "bbbbbbbbbbbb", "cc"]),
+]
+PREFIX_CASES = [
+    ("statement", date(2025, 1, 29), "FOMC statement, January 29, 2025"),
+    (
+        "minutes",
+        date(2024, 11, 7),
+        "FOMC minutes, November 7, 2024, Staff Economic Outlook",
+    ),
+    (
+        "minutes",
+        date(2020, 3, 3),
+        "FOMC minutes, March 3, 2020, Staff Economic Outlook",
+    ),
 ]
 
 
@@ -77,3 +90,22 @@ def test_oversized_minutes_paragraph_warns(caplog):
     chunks = chunk_document(doc)
     assert len(chunks) == 1
     assert any(r.levelno >= logging.WARNING for r in caplog.records)
+
+
+@pytest.mark.parametrize(
+    "doc_type, meeting_date, expected",
+    PREFIX_CASES,
+    ids=["statement", "minutes", "single_digit_day"],
+)
+def test_context_prefix(doc_type, meeting_date, expected):
+    chunk = Chunk(
+        chunk_id="x-000",
+        doc_id="x",
+        doc_type=doc_type,
+        meeting_date=meeting_date,
+        section="staff_outlook",
+        heading="Staff Economic Outlook",
+        url="u",
+        text="body",
+    )
+    assert context_prefix(chunk) == expected, expected
