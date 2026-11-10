@@ -222,7 +222,7 @@ Each decision is made when its build step arrives.
   - **Minutes:** pack consecutive paragraphs within one section, up to a target of ~500 tokens. A chunk never crosses a section boundary. Greedy: add the next paragraph if the chunk stays under the target, else start a new chunk.
   - **Size measure:** `len(text)`, at ~4 chars per token (target ~2,000 chars). No tokenizer dependency.
   - **Oversized paragraph:** a paragraph over the target on its own becomes its own chunk. Never split inside a paragraph.
-  - **Limits:** WARNING for a chunk over ~1,000 tokens, and continue. ERROR at the embedding model's input limit, checked at the embed step with truncation off.
+  - **Limits:** WARNING for a minutes chunk over ~1,000 tokens, and continue. ERROR at the embedding model's input limit, checked at the embed step with truncation off.
   - **Overlap:** none.
   - **Context prefix:** added to the embedded text only, never to the stored text. Statements: `f"FOMC statement, {d:%B} {d.day}, {d.year}"`. Minutes: `f"FOMC minutes, {d:%B} {d.day}, {d.year}, {section.heading}"`, where `d` is `meeting_date`.
   - **Not indexed:** `NOT_INDEXED` lists sections left out: `preamble`, `attendance`, `annual_organizational_matters`, `organizational_matters`, `selection_of_committee_officer`, `notation_vote`, `notation_votes`. Every other section, core or special topic, is chunked by the same rule.
