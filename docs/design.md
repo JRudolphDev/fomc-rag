@@ -219,21 +219,21 @@ Each decision is made when its build step arrives.
 
 - **Choice:**
   - **Statements:** one chunk per statement.
-  - **Minutes:** pack consecutive paragraphs within one section, up to a target of ~500 tokens. A chunk never crosses a section boundary. Greedy: add the next paragraph if the chunk stays under the target, else start a new chunk.
-  - **Size measure:** `len(text)`, at ~4 chars per token (target ~2,000 chars). No tokenizer dependency.
-  - **Oversized paragraph:** a paragraph over the target on its own becomes its own chunk. Never split inside a paragraph.
-  - **Limits:** WARNING for a chunk over ~1,000 tokens, and continue. ERROR at the embedding model's input limit, checked at the embed step with truncation off.
+  - **Minutes:** pack consecutive paragraphs within one section, up to a packing limit of ~500 tokens. A chunk never crosses a section boundary. Greedy: add the next paragraph if the chunk stays under the limit, else start a new chunk.
+  - **Size measure:** `len(text)`, at ~4 chars per token (limit ~2,000 chars). No tokenizer dependency.
+  - **Oversized paragraph:** a paragraph over the limit on its own becomes its own chunk. Never split inside a paragraph.
+  - **Limits:** WARNING for a minutes chunk over ~1,000 tokens, and continue. ERROR at the embedding model's input limit, checked at the embed step with truncation off.
   - **Overlap:** none.
-  - **Context prefix:** added to the embedded text only, never to the stored text. Statements: `f"FOMC statement, {d:%B} {d.day}, {d.year}"`. Minutes: `f"FOMC minutes, {d:%B} {d.day}, {d.year}, {section.heading}"`, where `d` is `meeting_date`.
+  - **Context prefix:** added to the embedded text only, never to the stored text. Statements: `f"FOMC statement, {d:%B} {d.day}, {d.year}"`. Minutes: `f"FOMC minutes, {d:%B} {d.day}, {d.year}, {chunk.heading}"`, where `d` is `chunk.meeting_date`.
   - **Not indexed:** `NOT_INDEXED` lists sections left out: `preamble`, `attendance`, `annual_organizational_matters`, `organizational_matters`, `selection_of_committee_officer`, `notation_vote`, `notation_votes`. Every other section, core or special topic, is chunked by the same rule.
 - **Alternatives:** Whole sections as chunks; single paragraphs as chunks; fixed-size chunks with overlap; splitting oversized paragraphs at a sentence boundary; a model-written context sentence per chunk; a list of sections to index instead of sections to skip.
 - **Why:**
   - **Statements whole:** a statement is short and tightly argued (median ~575 tokens, max ~1,150). Questions use the decision, the reasoning and the vote together.
   - **Not whole sections:** minutes sections are long (`participants_views` median ~3,700 tokens). One vector averages many topics (inflation, labor, risks, policy), so a specific question scores it weakly.
   - **Not single paragraphs:** core paragraphs are ~150 to 250 tokens and often lean on the paragraph before ("These risks..."). Alone they lose their subject, and top-k returns thin evidence.
-  - **~500 tokens:** 2 to 3 core paragraphs, so neighbours stay together without mixing many topics. `participants_views` becomes ~6 chunks. A starting point, set by experiment (see Revisit if).
+  - **~500 tokens:** a packing limit, not an average. Whole paragraphs rarely fill it, so the measured median is ~380 tokens (73% of core chunks hold 1 or 2 paragraphs), and `participants_views` becomes ~10 chunks. A starting point, set by experiment (see Revisit if). Report the chunk count and actual median for each setting.
   - **Section boundary:** sections are the topic structure of the minutes and map to the question types in section 1.
-  - **`len(text)`:** the target is soft and tuned by comparing sizes, so an approximation is enough. The hard limit is checked by the model's own tokenizer at the embed step.
+  - **`len(text)`:** the packing limit is soft and tuned by comparing sizes, so an approximation is enough. The hard limit is checked by the model's own tokenizer at the embed step.
   - **Oversized paragraph whole:** splitting a paragraph gives each half its own vector, and the second half loses the subject the first set up. The largest paragraph today is ~800 tokens, under the WARNING.
   - **Two limits:** an oversized chunk is valid but unusual, so warn and continue. A chunk over the model limit would be silently truncated, which corrupts its vector, so stop (the same rule as ingest).
   - **No overlap:** chunks end at paragraph boundaries, so nothing is cut mid-argument. Overlap duplicates text, and duplicates crowd out other evidence in top-k. The prefix is a cheaper fix for missing context.

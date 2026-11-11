@@ -1,9 +1,11 @@
-"""Data models for the pipeline: meetings from discovery, documents and sections from parsing."""
+"""Data models for the pipeline: meetings from discovery, documents and sections from parsing, chunks from chunking."""
 
 from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
+
+DocType = Literal["statement", "minutes"]
 
 
 class Meeting(BaseModel):
@@ -26,7 +28,20 @@ class Document(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     doc_id: str
-    doc_type: Literal["statement", "minutes"]
+    doc_type: DocType
     meeting_date: date
     url: str
     sections: tuple[Section, ...]
+
+
+class Chunk(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    chunk_id: str
+    doc_id: str
+    doc_type: DocType
+    meeting_date: date
+    section: str
+    heading: str
+    url: str
+    text: str
