@@ -100,7 +100,7 @@ Indexing (once): Ingest, Chunk, Embed, Store. Query (per question): Retrieve, Ge
 | Store | vectors and metadata | persisted index behind a thin `add` / `search` interface |
 | Retrieve | question | top-k chunks with scores (same model, `input_type="query"`) |
 | Generate | question and labeled chunks | cited answer, or "not covered" (Claude, section 6) |
-| Evaluate | test set and answers | right doc retrieved, answer correct, every citation real and supporting |
+| Evaluate | test set and answers | right section retrieved, answer correct, every citation real and supporting |
 
 ## 4. Decisions
 
@@ -246,7 +246,7 @@ Each decision is made when its build step arrives.
   - `search` returns `chunk_id` and score per hit, so BM25 and vector results can be fused on `chunk_id`.
   - Check the reranker input limit. Chunks are ~1,000 tokens at most.
 - **Revisit if:**
-  - **Target size:** rebuild at 250, 500 and 1,000 tokens, changing nothing else. Run the test set and keep the size with the most answers that are correct and properly cited. Record the numbers here.
+  - **Target size:** rebuild at 250, 500 and 1,000 tokens, changing nothing else. Run the test set and keep the size with the most answers that are correct and properly cited, using the tie rule in section 7. Record the numbers here.
   - The experiment shows misses whose context sat in the neighbouring chunk: try overlap or a model-written context sentence.
   - A test question needs attendance, officer elections or the standing authorizations: index those sections.
 
@@ -265,6 +265,7 @@ Each decision is made when its build step arrives.
 | `doc_type` | `statement` / `minutes` | Filtering |
 | `meeting_date` | `2022-06-15` | Links statement to minutes; date filtering |
 | `section` | `participants_views` | Section filtering. Statements use `statement`: never null, so no null handling in the store, and no invented paragraph labels. |
+| `heading` | `Staff Economic Outlook` | Section heading as printed; used in the minutes context prefix |
 | `url` | Fed page URL | One step from citation to source |
 | `text` | chunk text | Shown to the model and cited. Body only, exactly as parsed. |
 
@@ -280,9 +281,18 @@ The embedded text is the context prefix plus `text`. It is built at the embed st
 ## 7. Test set
 
 - **Location:** `eval/questions.jsonl`
-- **Fields:** `question`, `expected_answer`, `source_doc_ids`, `category`
+- **Fields:** `question`, `expected_answer`, `category`, `sources`
+- **`sources`:** a list of `{"doc_id": ..., "section": ...}` pairs, one per place the answer lives. A Comparison question has one pair per meeting. Pairs, not two parallel lists, so a doc can never drift out of line with its section. Never `chunk_id`: changing the chunk size renumbers chunks and would break every record. Section boundaries come from the headings, so they do not move when the chunk size changes.
 - **Rule:** Expected answers come from reading the documents, not memory or an LLM.
 - **Categories:** Single fact, Votes, Reasoning, Paraphrase, Comparison (a minority), Unanswerable.
+- **Size:** ~20 questions, 3 or 4 per category. Every answer is read by hand, so this is a first pass. One question is 5 points.
+- **Tie rule (set before any run):** if the top two settings differ by 2 questions or fewer, keep the default (500 tokens, or the current top-k). To get a firmer answer, add questions, not variables.
+- **Scores:**
+  - **Answer score (decides experiments):** answers that are correct and properly cited.
+  - **Section hit rate (main retrieval score):** a top-k chunk matches a `(doc_id, section)` pair. A miss means the right text did not come back: look at chunk size and top-k.
+  - **Doc hit rate (diagnostic):** a top-k chunk matches a `doc_id`. A section miss with a doc hit means right meeting, wrong section; a doc miss means wrong meeting entirely: look at dates and the context prefix.
+  - A section hit can still be the wrong chunk (`participants_views` is ~10 chunks), so the answer score is the final judge. Hit rates explain why an answer failed.
+- **Unanswerable:** questions outside the corpus (before 2019, press conferences). `sources` is `[]`, and these records are left out of both hit rates. Pass: the answer says the documents do not cover the question and cites no chunk. These catch answering from weights.
 - **Questions:** TODO
 
 ## 8. Failure modes
