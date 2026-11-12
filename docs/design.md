@@ -282,18 +282,18 @@ The embedded text is the context prefix plus `text`. It is built at the embed st
 
 - **Location:** `eval/questions.jsonl`
 - **Fields:** `question`, `expected_answer`, `category`, `sources`
-- **`sources`:** a list of `{"doc_id": ..., "section": ...}` pairs, one per place the answer lives. A Comparison question has one pair per meeting. Pairs, not two parallel lists, so a doc can never drift out of line with its section. Never `chunk_id`: changing the chunk size renumbers chunks and would break every record. Section boundaries come from the headings, so they do not move when the chunk size changes.
-- **Rule:** Expected answers come from reading the documents, not memory or an LLM.
+- **`sources`:** a list of `{"doc_id": ..., "section": ..., "quote": ...}` objects, one for every place in the corpus that alone supports the answer. A rate decision is in both the statement and the minutes policy action, so it lists both; otherwise retrieving the one left out scores a false miss. `quote` is the exact sentence or phrase the answer comes from, as parsed. One object per source, not parallel lists, so a doc can never drift out of line with its section or quote. Never `chunk_id`: changing the chunk size renumbers chunks and would break every record. Section boundaries come from the headings, so they do not move when the chunk size changes.
+- **Rule:** Expected answers come from the documents, not memory. Every answer is tied to a `quote`, and each answer is read against its quote by hand. `uv run python -m fomc_rag.check_questions` checks that each quote appears in its `(doc_id, section)` text and that the section is not in `NOT_INDEXED` (retrieval can never return a skipped section, so that source would be a guaranteed miss). Paraphrase questions avoid the documents' wording.
 - **Categories:** Single fact, Votes, Reasoning, Paraphrase, Comparison (a minority), Unanswerable.
 - **Size:** ~20 questions, 3 or 4 per category. Every answer is read by hand, so this is a first pass. One question is 5 points.
 - **Tie rule (set before any run):** if the top two settings differ by 2 questions or fewer, keep the default (500 tokens, or the current top-k). To get a firmer answer, add questions, not variables.
 - **Scores:**
   - **Answer score (decides experiments):** answers that are correct and properly cited.
-  - **Section hit rate (main retrieval score):** a top-k chunk matches a `(doc_id, section)` pair. A miss means the right text did not come back: look at chunk size and top-k.
+  - **Section hit rate (main retrieval score):** group the sources by meeting date (from `doc_id`). A record is a hit when every meeting has at least one source whose `(doc_id, section)` matches a top-k chunk. One meeting means any source counts; a Comparison needs every meeting. No extra field is needed, since the meetings come from the sources. A miss means the right text did not come back: look at chunk size and top-k.
   - **Doc hit rate (diagnostic):** a top-k chunk matches a `doc_id`. A section miss with a doc hit means right meeting, wrong section; a doc miss means wrong meeting entirely: look at dates and the context prefix.
   - A section hit can still be the wrong chunk (`participants_views` is ~10 chunks), so the answer score is the final judge. Hit rates explain why an answer failed.
 - **Unanswerable:** questions outside the corpus (before 2019, press conferences). `sources` is `[]`, and these records are left out of both hit rates. Pass: the answer says the documents do not cover the question and cites no chunk. These catch answering from weights.
-- **Questions:** TODO
+- **Questions:** 21 in `eval/questions.jsonl`: Single fact 4, Votes 4, Reasoning 4, Paraphrase 4, Comparison 2, Unanswerable 3. Meetings from 2020 to 2026; sources in 5 sections (`statement`, `policy_action`, `participants_views`, `staff_outlook`, `financial_situation`). A December 2018 question was dropped as Unanswerable: the January 2019 statement says the range was maintained, so the December 2018 range can be inferred.
 
 ## 8. Failure modes
 
